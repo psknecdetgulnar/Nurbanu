@@ -1,0 +1,97 @@
+{
+  "dogrulamaKodu": "Online",
+  "tarih": "20-5-2021-07:31",
+  "kaydiOlusturan": "NURBANU YARIMCA",
+  "makbuzNo": "028621126710",
+  "dekontNo": "2021001783997633",
+  "basvuruNo": "12671",
+  "zeminTipi": "KatIrtifaki",
+  "tasinmazKimlikNo": "98206324",
+  "ilIlce": "ÇANAKKALE/MERKEZ",
+  "il": "ÇANAKKALE",
+  "ilce": "MERKEZ",
+  "kurumAdi": "Çanakkale",
+  "mahalleKoy": "ARSLANCA",
+  "mevkii": "-",
+  "ciltSayfaNo": "120/11819",
+  "kayitDurum": "Aktif",
+  "adaParsel": "1366/7",
+  "ada": "1366",
+  "parsel": "7",
+  "atYuzolcum": 395724,
+  "bagimsizBolumNitelik": "DUBLEKS İŞ YERİ",
+  "bagimsizBolumBrutYuzolcum": "",
+  "bagimsizBolumNetYuzolcum": "",
+  "blokKatGirisBBNo": "B/5+ÇATI ARASI//24",
+  "arsaPayPayda": "156/28800",
+  "anaTasinmazNitelik": "ARSA",
+  "serhBeyanlar": [
+    {
+      "tur": "Beyan",
+      "aciklama": "2565 Sayılı Kanunun 28. Maddesi Gereği Belirtilen Alan İçerisinde Çanakkale - - Kalmaktadır( Şablon: 2565 Sayılı Kanunun 28. Maddesi Gereği Beyan 08-05-2018 10:07 - Tanımı) 7598",
+      "malikLehtar": "",
+      "tesisBilgisi": "",
+      "terkinBilgisi": ""
+    },
+    {
+      "tur": "Beyan",
+      "aciklama": "Yönetim Planı : 25/12/2017( Şablon: Yönetim Planının Belirtilmesi) Çanakkale - - 1 / 29 BİLGİ AMAÇLIDIR 28-12-2017 15:03 - 21940",
+      "malikLehtar": "",
+      "tesisBilgisi": "",
+      "terkinBilgisi": ""
+    },
+    {
+      "tur": "Beyan",
+      "aciklama": "06/02/2007 TARİHLİ BAKANLAR KURULU KARARINA İSTİNADEN Çanakkale - - YABANCI GERÇEK KİŞİLERE VE TÜZEL KİŞİLERE SATILAMAZ.SINIRLI VE 16-04-2007 00:00 - AYNI HAK TESİS EDİLEMEZ. TARİH: 16/04/2007 YEV:3255( Şablon: 3255 Yabancıların Taşınmaz ve Sınırlı Ayni Hak Edinimlerinin Kısıtlanması Belirtmesi)",
+      "malikLehtar": "",
+      "tesisBilgisi": "",
+      "terkinBilgisi": ""
+    },
+    {
+      "tur": "Serh",
+      "aciklama": "İcrai Haciz : ÇANAKKALE 3.İCRA DAİRESİ nin 10/12/2018 tarih 2018/5240 ESAS sayılı Haciz Yazısı sayılı yazıları ile 95000 TL bedel ile Alacaklı : İRFAN KÜTÜKLÜ lehine haciz işlenmiştir. Çanakkale 11-12-2018 09:52 - 20442",
+      "malikLehtar": "",
+      "tesisBilgisi": "11-12-2018 09:52 - 20442",
+      "terkinBilgisi": ""
+    },
+    {
+      "tur": "Serh",
+      "aciklama": "İhtiyati Haciz : ÇANAKKALE 3. İCRA DAİRESİ nin 25/12/2018 tarih 2018/5932 ESAS sayılı Haciz Yazısı sayılı yazıları ile. Borç : 185000 TL . (Alacaklı : ERCAN TOSUN ) Çanakkale 26-12-2018 10:00 - 21386",
+      "malikLehtar": "",
+      "tesisBilgisi": "26-12-2018 10:00 - 21386",
+      "terkinBilgisi": ""
+    }
+  ],
+  "malikler": [
+    {
+      "sistemNo": "413433814",
+      "malik": "KALE BAYAR İNŞAAT VE YAPI MALZEMELERİ GIDA TURİZM İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ",
+      "elBirligi": "",
+      "hissePay": "1",
+      "hissePayda": "1",
+      "metrekare": "0.00",
+      "toplamMetrekare": "0.00",
+      "edimmeSebebiTarihYevmiye": "Kat Karşılığı Temlik 31-01-2018 1674",
+      "terkinSebebiTarihYevmiye": ""
+    }
+  ],
+  "ipotekler": [
+    {
+      "alacakli": "(SN:40) TÜRKİYE İŞ BANKASI A.Ş.",
+      "musterekMi": "Hayır",
+      "borc": 80000000,
+      "faiz": "%36 DEĞİŞKEN 1/0 F.B.K.",
+      "dereceSira": "1/0",
+      "sure": "F.B.K.",
+      "tesisTarihYevmiye": "06-11-2018 16:45 - 18423",
+      "borcluMalik": "",
+      "malikBorc": "",
+      "tescilTarihYevmiye": "06-11-2018 16:45 - 18423"
+    }
+  ],
+  "ipotekVarYok": "Var",
+  "ipotekDereceSayisi": 1,
+  "toplamIpotekBorcu": 80000000,
+  "serhBeyanOzeti": "Sit alanı; Yabancıya satış yasağı",
+  "kaynakDosya": "arslanca-1366-7.pdf"
+}

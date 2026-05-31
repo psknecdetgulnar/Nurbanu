@@ -11,6 +11,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",
+    "geist": "^1.7.1",
     "next": "^15.0.3",
     "pdfjs-dist": "^4.7.76",
     "react": "^19.0.0",

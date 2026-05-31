@@ -15,8 +15,8 @@ export async function middleware(request: NextRequest) {
         setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           supabaseResponse = NextResponse.next({ request });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           cookiesToSet.forEach(({ name, value, options }) =>
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             supabaseResponse.cookies.set(name, value, options as any)
           );
         },
@@ -24,24 +24,26 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session so Server Components read up-to-date auth state
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const { data: { user } } = await supabase.auth.getUser();
   const { pathname } = request.nextUrl;
 
-  // Protect /app and all sub-routes
-  if (!user && (pathname === '/app' || pathname.startsWith('/app/'))) {
+  // Korumalı rotalar: /app ve /araclar/* — giriş yoksa /login'e yönlendir
+  const isProtected =
+    pathname === '/app' ||
+    pathname.startsWith('/app/') ||
+    pathname === '/araclar' ||
+    pathname.startsWith('/araclar/');
+
+  if (!user && isProtected) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
     return NextResponse.redirect(loginUrl);
   }
 
-  // Redirect already-logged-in users away from /login
+  // Zaten giriş yapmış → /login'den uzaklaştır
   if (user && pathname === '/login') {
     const appUrl = request.nextUrl.clone();
-    appUrl.pathname = '/app';
+    appUrl.pathname = '/araclar/takbis-okuyucu';
     return NextResponse.redirect(appUrl);
   }
 
@@ -49,5 +51,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/app', '/app/(.*)', '/login'],
+  matcher: ['/app', '/app/(.*)', '/araclar', '/araclar/(.*)', '/login'],
 };
