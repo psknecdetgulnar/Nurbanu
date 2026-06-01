@@ -94,7 +94,7 @@ async function fetchPOIs(latRaw: number, lngRaw: number): Promise<POI[]> {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           'Accept':       'application/json',
-          'User-Agent':   'NurbanDeğerleme/1.0',
+          'User-Agent':   'NurbanDegerleme/1.0',
         },
         body:    `data=${encodeURIComponent(query)}`,
         signal:  ctrl.signal,
