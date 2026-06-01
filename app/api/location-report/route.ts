@@ -76,7 +76,7 @@ async function fetchPOIs(latRaw: number, lngRaw: number): Promise<POI[]> {
     `  way["highway"="secondary"](${bbox});`,
     `  way["highway"="tertiary"](${bbox});`,
     ');',
-    'out center tags;',
+    'out center;',    // center: way/relation koordinatı + tags (zaten dahil)
   ].join('\n');
 
   console.log(`[location-report] Overpass query bbox: ${bbox}`);
@@ -132,6 +132,7 @@ const TYPE_MAP: Record<string, string> = {
   place_of_worship: 'cami',
   hospital:         'hastane',
   clinic:           'hastane',
+  health_centre:    'hastane',
 };
 
 const HIGHWAY_MAP: Record<string, string> = {
@@ -142,31 +143,45 @@ const HIGHWAY_MAP: Record<string, string> = {
   tertiary:  'ikincil yol',
 };
 
+// Overpass raw element tipi (lon, node/way/relation/center hepsi dahil)
+type OverpassEl = {
+  type: string;
+  lat?: number;
+  lon?: number;        // Overpass node koordinatı
+  center?: { lat: number; lon: number };  // way/relation merkezi
+  tags?: Record<string, string>;
+};
+
 function parseElements(
-  elements: Array<{ type: string; lat?: number; lng?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }>,
+  elements: OverpassEl[],
   originLat: number,
   originLng: number,
 ): POI[] {
   const pois: POI[] = [];
+  let skipped = 0;
 
   for (const el of elements) {
     const tags = el.tags ?? {};
 
-    // Koordinat: node → lat/lng, way → center
+    // ── Koordinat çıkar ───────────────────────────────────────────────────
     let elLat: number | undefined;
     let elLng: number | undefined;
 
     if (el.type === 'node') {
       elLat = el.lat;
-      elLng = (el as { lon?: number }).lon ?? (el as { lng?: number }).lng;
-    } else if (el.type === 'way' && el.center) {
+      elLng = el.lon;                      // Overpass: lon (not lng)
+    } else if (el.center) {
+      // way ve relation için center (out center; ile gelir)
       elLat = el.center.lat;
       elLng = el.center.lon;
     }
 
-    if (elLat == null || elLng == null) continue;
+    if (elLat == null || elLng == null || isNaN(elLat) || isNaN(elLng)) {
+      skipped++;
+      continue;
+    }
 
-    // Tip tespiti
+    // ── Tip tespiti ───────────────────────────────────────────────────────
     let type = '';
     if (tags.amenity && TYPE_MAP[tags.amenity]) {
       type = TYPE_MAP[tags.amenity];
@@ -178,6 +193,10 @@ function parseElements(
 
     const name = tags.name || tags['name:tr'] || type;
     pois.push({ name, type, distance: Math.round(haversine(originLat, originLng, elLat, elLng)) });
+  }
+
+  if (skipped > 0) {
+    console.log(`[location-report] parseElements: ${pois.length} kept, ${skipped} skipped (no coords)`);
   }
 
   // Yakından uzağa sırala
@@ -224,15 +243,20 @@ export async function POST(req: NextRequest) {
     const consumed = await consumeCredit(user.id);
     if (!consumed) return NextResponse.json({ error: 'Kredi düşülemedi' }, { status: 403 });
 
-    // POI çek (başarısız olursa boş liste ile devam et, kredi iade etme)
+    // POI çek — başarısız olursa kredi iade et (rollback)
     let pois: POI[] = [];
     let poiWarning: string | null = null;
     try {
       pois = await fetchPOIs(lat, lng);
     } catch (fetchErr) {
+      // Overpass başarısız → krediyi iade et
+      await refundCredit(user.id);
       const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-      console.error('[location-report] fetchPOIs failed:', msg);
-      poiWarning = 'OSM harita verisi şu anda alınamadı (sunucu meşgul olabilir). Konum raporu POI bilgisi olmadan oluşturuldu.';
+      console.error('[location-report] fetchPOIs failed, credit refunded:', msg);
+      return NextResponse.json(
+        { error: `Harita verisi alınamadı. Krediniz iade edildi. Lütfen tekrar deneyin. (${msg.slice(0, 80)})` },
+        { status: 502 }
+      );
     }
 
     // Rapor JSON oluştur (içerik KAYDEDILMEZ)
