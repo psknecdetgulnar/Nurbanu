@@ -180,23 +180,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Pricing teaser ─────────────────────────────────────────────── */}
-      <section className="max-w-[1200px] mx-auto px-10 pb-20 text-center">
-        <h2 className="font-geist font-semibold text-2xl tracking-[-0.01em] text-on-surface mb-3">
-          Tek araç değil, büyüyen bir kutu
-        </h2>
-        <p className="text-sm text-text-muted max-w-md mx-auto mb-8">
-          Tüm araçlara tek abonelikle erişin. Platforma eklenen her yeni araç aynı abonelikte. Aylık veya yıllık.
-        </p>
-        <Link
-          href="/login"
-          className="inline-block px-6 py-2.5 rounded-lg text-sm font-medium border border-subtle
-                     hover:border-bright text-on-surface transition-colors"
-        >
-          Planları Gör
-        </Link>
-      </section>
-
       {/* ── Closing CTA ────────────────────────────────────────────────── */}
       <section className="border-t border-subtle py-20 text-center">
         <h2 className="font-geist font-semibold text-3xl tracking-[-0.02em] text-on-surface mb-8">
@@ -215,11 +198,12 @@ export default function Home() {
       <footer className="border-t border-subtle py-8">
         <div className="max-w-[1200px] mx-auto px-10 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex flex-wrap gap-6 text-xs text-text-muted">
-            {['Araçlar', 'Fiyatlandırma', 'KVKK / Gizlilik', 'İletişim', 'Giriş Yap'].map((label) => (
-              <Link key={label} href="/login" className="hover:text-on-surface-variant transition-colors">
-                {label}
-              </Link>
-            ))}
+            <Link href="/kullanim-sartlari" className="hover:text-on-surface-variant transition-colors">Kullanım Şartları</Link>
+            <Link href="/kvkk" className="hover:text-on-surface-variant transition-colors">KVKK / Gizlilik</Link>
+            <Link href="/cerez-politikasi" className="hover:text-on-surface-variant transition-colors">Çerez Politikası</Link>
+            <Link href="/mesafeli-satis-sozlesmesi" className="hover:text-on-surface-variant transition-colors">Mesafeli Satış Sözleşmesi</Link>
+            <Link href="/iptal-ve-iade" className="hover:text-on-surface-variant transition-colors">İptal ve İade</Link>
+            <Link href="/login" className="hover:text-on-surface-variant transition-colors">Giriş Yap</Link>
           </div>
           <p className="text-xs text-text-muted text-center">
             Üretilen çıktılar uzmanın kontrolü ve sorumluluğundadır.

@@ -23,7 +23,7 @@ interface FileResult {
   rawText?: string;
 }
 
-type OutputTab = 'takyidat' | 'tamrapor' | 'json' | 'rawtext';
+type OutputTab = 'takyidat' | 'tamrapor' | 'rawtext';
 
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function TakbisOkuyucuPage() {
@@ -275,11 +275,6 @@ export default function TakbisOkuyucuPage() {
                   {tamRaporAll || '(çıktı yok)'}
                 </pre>
               )}
-              {activeTab === 'json' && (
-                <pre className="p-6 text-xs text-secondary font-mono whitespace-pre-wrap">
-                  {JSON.stringify(allRecords, null, 2)}
-                </pre>
-              )}
               {activeTab === 'rawtext' && (
                 <pre className="p-6 text-xs text-tertiary font-mono whitespace-pre-wrap">
                   {fileResults.map((r) => `=== ${r.name} ===\n${r.rawText ?? ''}`).join('\n\n')}
@@ -350,6 +345,5 @@ function GhostButton({ onClick, children }: { onClick: () => void; children: Rea
 const OUTPUT_TABS = [
   { key: 'takyidat', label: 'TAKYİDAT' },
   { key: 'tamrapor', label: 'TAM RAPOR' },
-  { key: 'json',     label: 'HAM JSON' },
   { key: 'rawtext',  label: 'HAM METİN' },
 ];
