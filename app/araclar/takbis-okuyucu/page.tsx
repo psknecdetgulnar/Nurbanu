@@ -137,7 +137,7 @@ export default function TakbisOkuyucuPage() {
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <header className="bg-surface-raised border-b border-subtle sticky top-0 z-10">
-        <div className="max-w-[1200px] mx-auto px-10 h-14 flex items-center justify-between">
+        <div className="max-w-[1200px] mx-auto pl-14 pr-10 lg:px-10 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/" className="text-xs font-mono text-text-muted hover:text-on-surface transition-colors tracking-wider">
               ← ARAÇLAR

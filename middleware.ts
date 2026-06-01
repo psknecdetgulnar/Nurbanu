@@ -32,7 +32,9 @@ export async function middleware(request: NextRequest) {
     pathname === '/app' ||
     pathname.startsWith('/app/') ||
     pathname === '/araclar' ||
-    pathname.startsWith('/araclar/');
+    pathname.startsWith('/araclar/') ||
+    pathname === '/dashboard' ||
+    pathname.startsWith('/dashboard/');
 
   if (!user && isProtected) {
     const loginUrl = request.nextUrl.clone();
@@ -51,5 +53,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/app', '/app/(.*)', '/araclar', '/araclar/(.*)', '/login'],
+  matcher: ['/app', '/app/(.*)', '/araclar', '/araclar/(.*)', '/dashboard', '/dashboard/(.*)', '/login'],
 };
