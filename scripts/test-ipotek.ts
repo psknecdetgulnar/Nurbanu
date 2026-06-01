@@ -21,7 +21,7 @@ import { splitDocuments } from '../lib/takbis/splitDocuments';
 const workerPath = path.resolve('./node_modules/pdfjs-dist/build/pdf.worker.mjs');
 (pdfjsLib as any).GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
 
-const FIXTURES_DIR = 'docs/fixtures';
+const FIXTURES_DIR = 'docs/fixtures/pdf';
 const SNAPSHOTS_DIR = 'docs/fixtures/snapshots';
 
 // ── CLI ───────────────────────────────────────────────────────────────────
@@ -98,10 +98,11 @@ interface NormIpotek {
   yevmiye:     string;
 }
 interface FileSnap {
-  file:      string;
-  ipotekler: ParsedIpotek[];
-  rehinler:  NormIpotek[];
-  takyidatRehinBlok: string;
+  file:               string;
+  ipotekler:          ParsedIpotek[];
+  rehinler:           NormIpotek[];
+  takyidatRehinBlok:  string;
+  takyidatBeyanBlok:  string;
 }
 
 async function processFile(filePath: string): Promise<{ snap: FileSnap; errors: string[] }> {
@@ -114,6 +115,7 @@ async function processFile(filePath: string): Promise<{ snap: FileSnap; errors: 
   const allIpotekler: ParsedIpotek[] = [];
   const allRehinler:  NormIpotek[]   = [];
   let   takyidatRehinBlok = '';
+  let   takyidatBeyanBlok = '';
   const errors: string[] = [];
 
   for (const seg of segments) {
@@ -145,16 +147,22 @@ async function processFile(filePath: string): Promise<{ snap: FileSnap; errors: 
     }
 
     const rendered = renderTakyidat(model);
-    const block    = rendered.match(/Rehinler Hanesinde:([\s\S]*?)(?=\n\nRehin|Rehinlere|\n\n[A-ZÇĞÜŞİÖ]|$)/);
-    if (block) takyidatRehinBlok += block[0] + '\n';
+    const rehinBlock = rendered.match(/Rehinler Hanesinde:([\s\S]*?)(?=\n\nRehin|Rehinlere|\n\n[A-ZÇĞÜŞİÖ]|$)/);
+    if (rehinBlock) takyidatRehinBlok += rehinBlock[0] + '\n';
+    // Capture Beyanlar Hanesinde + optional Eklenti Bilgileri as one block
+    const beyanEklentiBlock = rendered.match(
+      /Beyanlar Hanesinde:[\s\S]*?(?=\n\n(?:Şerhler|Rehinler|Rehinlere)|$)/
+    ) ?? rendered.match(/Eklenti Bilgileri:[\s\S]*?(?=\n\n(?:Şerhler|Rehinler|Rehinlere)|$)/);
+    if (beyanEklentiBlock) takyidatBeyanBlok += beyanEklentiBlock[0].trimEnd() + '\n';
   }
 
   return {
     snap: {
-      file:      path.basename(filePath),
-      ipotekler: allIpotekler,
-      rehinler:  allRehinler,
-      takyidatRehinBlok: takyidatRehinBlok.trim(),
+      file:               path.basename(filePath),
+      ipotekler:          allIpotekler,
+      rehinler:           allRehinler,
+      takyidatRehinBlok:  takyidatRehinBlok.trim(),
+      takyidatBeyanBlok:  takyidatBeyanBlok.trim(),
     },
     errors,
   };
@@ -170,8 +178,14 @@ function printReport(filePath: string, snap: FileSnap, errors: string[]) {
 
   if (snap.ipotekler.length === 0) {
     console.log('   → İpotek kaydı yok.');
-    return;
   }
+
+  if (snap.takyidatBeyanBlok) {
+    console.log('\n  Beyan/Eklenti çıktısı:');
+    console.log(snap.takyidatBeyanBlok.split('\n').map(l => '  ' + l).join('\n'));
+  }
+
+  if (snap.ipotekler.length === 0) return;
 
   console.log('\n  Ham ipotek kayıtları:');
   snap.ipotekler.forEach((ip, i) => {
@@ -195,7 +209,7 @@ function printReport(filePath: string, snap: FileSnap, errors: string[]) {
   });
 
   if (snap.takyidatRehinBlok) {
-    console.log('\n  Takyidat çıktısı:');
+    console.log('\n  Rehin çıktısı:');
     console.log(snap.takyidatRehinBlok.split('\n').map(l => '  ' + l).join('\n'));
   }
 

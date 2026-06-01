@@ -37,6 +37,24 @@ export function extractSaat(raw: string): string {
 }
 
 /**
+ * Yevmiye sayısını metin içinden çıkarır.
+ * Önce metnin sonunda 3-6 haneli sayı arar; bulamazsa tarih sonrasındaki
+ * ilk 3-6 haneli sayıya (yani tarih sütunundan sızan yevmiye) döner.
+ */
+function extractYevmiye(text: string, afterOffset: number): string {
+  // 1) Metnin sonundaki 3-6 haneli sayı (standart konum)
+  const fromEnd = text.match(/\b(\d{3,6})\s*$/)?.[1];
+  if (fromEnd) return fromEnd;
+  // 2) Tarih pattern'inden hemen sonra "- YEVMIYE"
+  const afterText = text.slice(afterOffset);
+  const immed = afterText.match(/^\s*[-–]\s*(\d{3,6})\b/)?.[1];
+  if (immed) return immed;
+  // 3) Tarih sonrasındaki ilk 3-6 haneli izole sayı (Şablon içine gömülü yevmiye)
+  const first = afterText.match(/\b(\d{3,6})\b/)?.[1];
+  return first ?? '';
+}
+
+/**
  * Metin içinden gömülü tescil tarihi + yevmiye çıkarır.
  *
  * Örnek: "Çanakkale - 11-12-2018 09:52 - 20442"
@@ -46,12 +64,11 @@ export function extractSaat(raw: string): string {
 export function extractDateYevmiye(text: string): { tescilISO: string; yevmiye: string } {
   if (!text) return { tescilISO: '', yevmiye: '' };
 
-  // Birincil: DD-MM-YYYY HH:MM örüntüsü + sonda yevmiye
+  // Birincil: DD-MM-YYYY HH:MM örüntüsü + yevmiye
   const m1 = text.match(/(\d{2}-\d{2}-\d{4})\s+\d{2}:\d{2}/);
   if (m1) {
     const iso = parseToISO(m1[1]);
-    // Yevmiye: metin sonundaki son 4-6 haneli sayı
-    const yev = text.match(/\b(\d{4,6})\s*$/)?.[1] ?? '';
+    const yev = extractYevmiye(text, (m1.index ?? 0) + m1[0].length);
     return { tescilISO: iso, yevmiye: yev };
   }
 
@@ -59,7 +76,7 @@ export function extractDateYevmiye(text: string): { tescilISO: string; yevmiye: 
   const m2 = text.match(/(\d{2}\.\d{2}\.\d{4})\s+\d{2}:\d{2}/);
   if (m2) {
     const iso = parseToISO(m2[1]);
-    const yev = text.match(/\b(\d{4,6})\s*$/)?.[1] ?? '';
+    const yev = extractYevmiye(text, (m2.index ?? 0) + m2[0].length);
     return { tescilISO: iso, yevmiye: yev };
   }
 
@@ -67,7 +84,7 @@ export function extractDateYevmiye(text: string): { tescilISO: string; yevmiye: 
   const m3 = text.match(/(\d{1,2}[-./]\d{1,2}[-./]\d{4})/);
   if (m3) {
     const iso = parseToISO(m3[1]);
-    const yev = text.match(/\b(\d{4,6})\s*$/)?.[1] ?? '';
+    const yev = extractYevmiye(text, (m3.index ?? 0) + m3[0].length);
     return { tescilISO: iso, yevmiye: yev };
   }
 

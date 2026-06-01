@@ -1,3 +1,10 @@
+export interface EklentiItem {
+  sistemNo: string;
+  tip: string;
+  tanim: string;
+  tesisTarihYevmiye: string;
+}
+
 export interface SerhBeyan {
   tur: string;
   aciklama: string;
@@ -66,6 +73,7 @@ export interface TakbisRecord {
   serhBeyanlar: SerhBeyan[];
   malikler: Malik[];
   ipotekler: Ipotek[];
+  eklentiler: EklentiItem[];
 
   // Hesaplanan / türetilmiş alanlar
   ipotekVarYok: string;

@@ -4,8 +4,8 @@
  * Parse pipeline'a DOKUNMAZ. Sadece parse çıktısını normalize eder ve
  * render katmanı için hazırlar.
  */
-import type { TakbisRecord, SerhBeyan, Ipotek, Malik } from './types';
-import type { BelgeModel, TakyidatItem, TakyidatTip, MalikItem } from './render/types';
+import type { TakbisRecord, SerhBeyan, Ipotek, Malik, EklentiItem } from './types';
+import type { BelgeModel, TakyidatItem, TakyidatTip, MalikItem, EklentiDisplayItem } from './render/types';
 import { parseToISO, extractSaat, extractDateYevmiye } from './render/dateUtils';
 
 // ---------------------------------------------------------------------------
@@ -23,6 +23,7 @@ export function normalizeRecord(r: TakbisRecord): BelgeModel {
     serhler,
     rehinler: r.ipotekler.map(normalizeIpotek),
     rehinSerhleri,
+    eklentiler: (r.eklentiler ?? []).map(normalizeEklenti),
   };
 }
 
@@ -238,15 +239,32 @@ function normalizeIpotek(ip: Ipotek): TakyidatItem {
 }
 
 // ---------------------------------------------------------------------------
+// Eklenti normalizer
+// ---------------------------------------------------------------------------
+
+function normalizeEklenti(e: EklentiItem): EklentiDisplayItem {
+  const { tescilISO, yevmiye } = extractDateYevmiye(e.tesisTarihYevmiye);
+  return { tanim: e.tanim, tip: e.tip, tescilTarihi: tescilISO, yevmiye };
+}
+
+// ---------------------------------------------------------------------------
 // Yardımcı
 // ---------------------------------------------------------------------------
 
 function cleanHam(text: string): string {
   return text
-    .replace(/\(\s*[ŞşSs]ablon\s*:[^)]*?\)/gi, '')
+    .replace(/\(\s*[ŞşSs]ablon\s*:[^)]*?\)/gi, '')       // Şablon templates
     .replace(/\(SN:\d+\)\s*/gi, '')
     .replace(/\d+\s*\/\s*\d+\s+BİLGİ\s+AMAÇLIDIR/gi, '')
     .replace(/BİLGİ\s+AMAÇLIDIR/gi, '')
+    // Remove date-time patterns leaked from TAKBIS right columns (DD-MM-YYYY HH:MM -)
+    .replace(/\s+\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}\s*[-–]?/g, ' ')
+    // Remove trailing yevmiye number
+    .replace(/\s+\d{3,6}\s*$/, '')
+    // Remove "MUNICIPALITY -" column noise appearing in middle of text
+    .replace(/\s+\S+\s+[-–](?=\s)/g, ' ')
+    // Remove trailing "MUNICIPALITY -"
+    .replace(/\s+\S+\s+[-–]\s*$/, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
 }

@@ -61,6 +61,13 @@ export interface MalikItem {
   edinmeYevmiye: string;
 }
 
+export interface EklentiDisplayItem {
+  tanim: string;
+  tip: string;
+  tescilTarihi: string;  // ISO
+  yevmiye: string;
+}
+
 export interface BelgeModel {
   belge: BelgeMeta;
   tasinmaz: Tasinmaz;
@@ -69,4 +76,5 @@ export interface BelgeModel {
   serhler: TakyidatItem[];
   rehinler: TakyidatItem[];
   rehinSerhleri: TakyidatItem[];
+  eklentiler: EklentiDisplayItem[];
 }

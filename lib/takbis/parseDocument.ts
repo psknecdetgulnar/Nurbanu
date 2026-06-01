@@ -1,4 +1,4 @@
-import type { TakbisRecord, Malik, Ipotek, SerhBeyan } from './types';
+import type { TakbisRecord, Malik, Ipotek, SerhBeyan, EklentiItem } from './types';
 import { generateRiskSummary } from '../riskSummary';
 
 // ---------------------------------------------------------------------------
@@ -95,29 +95,97 @@ function parseSerhBeyan(sectionText: string): SerhBeyan[] {
   const dataLines = lines.filter(
     (l) =>
       !/^(TA[ŞS]INMAZA|MÜLK[İI]YETE|[ŞS]ERH\s+BEYAN|Tür\s*[|:A])/i.test(l) &&
-      !/^(Tür|Açıklama|Malik\/Lehtar|Tesis|Terkin)\s*$/i.test(l)
+      !/^(Tür|Açıklama|Malik\/Lehtar|Tesis|Terkin)\s*$/i.test(l) &&
+      !/^EKLENTİ\s+BİLGİLERİ/i.test(l)
   );
 
   let current: Partial<SerhBeyan> | null = null;
+  let lastLineWasDate = false;
   for (const line of dataLines) {
     const turMatch = line.match(/^([ŞşSs]erh|[Bb]eyan|[İIiı]rtifak|[Hh]aciz|[Tt]edbir|[Rr]ehin|Kamu\s+Haczi)\b/i);
     if (turMatch) {
       if (current) rows.push(finSerhBeyan(current));
       current = { tur: turMatch[1], aciklama: line.slice(turMatch[0].length).trim() };
+      lastLineWasDate = false;
     } else if (current) {
-      if (/^\d{11}/.test(line) || line === '-') {
+      // Lines starting with DD-MM-YYYY HH:MM are the date/tesis column
+      if (/^\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}/.test(line)) {
+        current.tesisBilgisi = ((current.tesisBilgisi ?? '') + ' ' + line).trim();
+        lastLineWasDate = true;
+      } else if (lastLineWasDate && /^\d{3,6}$/.test(line.trim())) {
+        // Standalone yevmiye number immediately after a date line
+        current.tesisBilgisi = ((current.tesisBilgisi ?? '') + ' ' + line).trim();
+        lastLineWasDate = false;
+      } else if (/^\d{11}/.test(line) || line === '-') {
         current.malikLehtar = ((current.malikLehtar ?? '') + ' ' + line).trim();
+        lastLineWasDate = false;
       } else if (/Tesis|Kurum/i.test(line)) {
         current.tesisBilgisi = ((current.tesisBilgisi ?? '') + ' ' + line).trim();
+        lastLineWasDate = false;
       } else if (/Terkin/i.test(line)) {
         current.terkinBilgisi = ((current.terkinBilgisi ?? '') + ' ' + line).trim();
+        lastLineWasDate = false;
       } else {
         current.aciklama = ((current.aciklama ?? '') + ' ' + line).trim();
+        lastLineWasDate = false;
       }
     }
   }
   if (current) rows.push(finSerhBeyan(current));
   return rows;
+}
+
+// ---------------------------------------------------------------------------
+// Eklenti table (after EKLENTİ BİLGİLERİ heading)
+// ---------------------------------------------------------------------------
+function parseEklentiler(sectionText: string): EklentiItem[] {
+  if (!sectionText) return [];
+  const items: EklentiItem[] = [];
+  const lines = sectionText.split('\n').map((l) => l.trim()).filter(Boolean);
+  const dataLines = lines.filter(
+    (l) =>
+      !/^(EKLENTİ\s+BİLGİLERİ|Sistem\s+No|Tip\b|Tanım\b|Tesis|Terkin|BİLGİ\s+AMAÇLIDIR)/i.test(l) &&
+      !/^\d+\s*\/\s*\d+\s*$/.test(l)
+  );
+
+  let pending: Partial<EklentiItem> | null = null;
+
+  for (const line of dataLines) {
+    // Row: {sistemNo} {content including tip+tanim+kurum} {DD-MM-YYYY} {HH:MM} [-] [yevmiye]
+    const rowMatch = line.match(
+      /^(\d{6,12})\s+(.+?)\s+(\d{2}-\d{2}-\d{4})\s+\d{2}:\d{2}\s*[-–]?\s*(\d{3,6})?/
+    );
+    if (rowMatch) {
+      if (pending) items.push(finalizeEklenti(pending));
+      const rawContent = rowMatch[2].replace(/\s+\S+\s*[-–]\s*$/, '').trim();
+      const words = rawContent.split(/\s+/);
+      const tip = words[0] ?? '';
+      const tanim = words.slice(1).join(' ');
+      const tarih = rowMatch[3];
+      const yev = rowMatch[4] ?? '';
+      pending = {
+        sistemNo: rowMatch[1],
+        tip,
+        tanim,
+        tesisTarihYevmiye: tarih + (yev ? ' - ' + yev : ''),
+      };
+    } else if (pending && !pending.tesisTarihYevmiye?.includes(' - ') && /^\d{3,6}$/.test(line)) {
+      pending.tesisTarihYevmiye = (pending.tesisTarihYevmiye ?? '') + ' - ' + line;
+    } else if (pending && pending.tesisTarihYevmiye?.includes(' - ') === false && /^\d{3,6}$/.test(line)) {
+      pending.tesisTarihYevmiye = (pending.tesisTarihYevmiye ?? '') + ' - ' + line;
+    }
+  }
+  if (pending) items.push(finalizeEklenti(pending));
+  return items;
+}
+
+function finalizeEklenti(p: Partial<EklentiItem>): EklentiItem {
+  return {
+    sistemNo: p.sistemNo ?? '',
+    tip: p.tip ?? '',
+    tanim: p.tanim ?? '',
+    tesisTarihYevmiye: p.tesisTarihYevmiye ?? '',
+  };
 }
 
 function finSerhBeyan(p: Partial<SerhBeyan>): SerhBeyan {
@@ -368,10 +436,10 @@ export function parseDocument(text: string, sourceFile = ''): TakbisRecord | nul
     /Kaydı\s+Oluşturan\s*:\s*(.+)/i
   ).replace(/\s+/g, ' ');
 
-  // Date: "20-5-2021-07:31", "01.05.2021", "1/5/2021"
+  // Date: "20-5-2021-07:31", "12-2-2026-14:12"  — capture time component if present
   const tarih = get(
     combined,
-    /Tarih\s*:\s*(\d{1,2}[-./]\d{1,2}[-./]\d{4})/i
+    /Tarih\s*:\s*(\d{1,2}[-./]\d{1,2}[-./]\d{4}(?:[-\s]\d{2}:\d{2})?)/i
   );
 
   const { makbuzNo, dekontNo, basvuruNo } = parseMakbuzBlock(combined);
@@ -429,12 +497,28 @@ export function parseDocument(text: string, sourceFile = ''): TakbisRecord | nul
   const anaTasinmazNitelik        = get(combined, /Ana\s+Ta[şs]ınmaz\s+Nitelik\s*:\s*([^\n:]+?)(?=[:\n]|$)/i).trim();
 
   // ── Alt tablolar ──────────────────────────────────────────────────────
-  const serhBeyanlar = [
-    ...parseSerhBeyan(serhSec),
-    ...parseSerhBeyan(mulkSerhSec),   // owner-level şerh merged into same array
+  // Split serhSec at EKLENTİ BİLGİLERİ heading
+  const eklentiIdx = serhSec.search(/EKLENTİ\s+BİLGİLERİ/i);
+  const serhSecForBeyan = eklentiIdx >= 0 ? serhSec.slice(0, eklentiIdx) : serhSec;
+  const eklentiSec      = eklentiIdx >= 0 ? serhSec.slice(eklentiIdx) : '';
+
+  const rawBeyanlar = [
+    ...parseSerhBeyan(serhSecForBeyan),
+    ...parseSerhBeyan(mulkSerhSec),
   ];
-  const malikler  = parseMalikler(mulkSec);
-  const ipotekler = parseIpotekler(ipotekSec);
+
+  // Deduplicate by first 120 chars of aciklama (handles PDF duplicate rows)
+  const seenAciklama = new Set<string>();
+  const serhBeyanlar = rawBeyanlar.filter((sb) => {
+    const key = sb.aciklama.trim().slice(0, 120);
+    if (seenAciklama.has(key)) return false;
+    seenAciklama.add(key);
+    return true;
+  });
+
+  const eklentiler = parseEklentiler(eklentiSec);
+  const malikler   = parseMalikler(mulkSec);
+  const ipotekler  = parseIpotekler(ipotekSec);
 
   // ── Hesaplanan alanlar ────────────────────────────────────────────────
   const ipotekVarYok = ipotekler.length > 0 ? 'Var' : 'Yok';
@@ -478,6 +562,7 @@ export function parseDocument(text: string, sourceFile = ''): TakbisRecord | nul
     serhBeyanlar,
     malikler,
     ipotekler,
+    eklentiler,
     ipotekVarYok,
     ipotekDereceSayisi,
     toplamIpotekBorcu,

@@ -10,7 +10,7 @@
  * - Parantez sonu: ` (DD.MM.YYYY tarih, N yevmiye)` (§5).
  * - Parse edilemeyen kalemlerde `ham` alanı aynen yazılır (§8).
  */
-import type { BelgeModel, TakyidatItem } from './types';
+import type { BelgeModel, TakyidatItem, EklentiDisplayItem } from './types';
 import { isoToDisplay, formatPara } from './config';
 
 // ---------------------------------------------------------------------------
@@ -18,17 +18,17 @@ import { isoToDisplay, formatPara } from './config';
 // ---------------------------------------------------------------------------
 
 export function renderTakyidat(model: BelgeModel): string {
-  const { belge, beyanlar, serhler, rehinler, rehinSerhleri } = model;
+  const { belge, beyanlar, serhler, rehinler, rehinSerhleri, eklentiler } = model;
 
   const sorted = {
-    beyanlar: sortItems(beyanlar),
+    beyanlar: sortItemsDesc(beyanlar),   // most-recent first per spec
     serhler: sortItems(serhler),
     rehinler: sortItems(rehinler),
     rehinSerhleri: sortItems(rehinSerhleri),
   };
 
   const hasAny = [sorted.beyanlar, sorted.serhler, sorted.rehinler, sorted.rehinSerhleri]
-    .some((arr) => arr.length > 0);
+    .some((arr) => arr.length > 0) || (eklentiler?.length ?? 0) > 0;
 
   const acilis = renderAcilis(belge, hasAny);
   const kapanis = renderKapanis(belge);
@@ -37,6 +37,9 @@ export function renderTakyidat(model: BelgeModel): string {
 
   if (sorted.beyanlar.length > 0) {
     haneler.push('Beyanlar Hanesinde:\n' + sorted.beyanlar.map(renderItem).join('\n'));
+  }
+  if (eklentiler && eklentiler.length > 0) {
+    haneler.push('Eklenti Bilgileri:\n' + eklentiler.map(renderEklentiItem).join('\n'));
   }
   if (sorted.serhler.length > 0) {
     haneler.push('Şerhler Hanesinde:\n' + sorted.serhler.map(renderItem).join('\n'));
@@ -91,10 +94,10 @@ function renderKapanis(belge: BelgeModel['belge']): string {
 
 function renderItem(item: TakyidatItem): string {
   try {
-    return '-' + dispatch(item);
+    return '- ' + dispatch(item);
   } catch {
     // Herhangi bir hatada ham metin kullan (§8)
-    return '-' + item.ham + parens(item);
+    return '- ' + item.ham + parens(item);
   }
 }
 
@@ -132,8 +135,7 @@ function renderBeyanYabanci(item: TakyidatItem): string {
 }
 
 function renderBeyanDiger(item: TakyidatItem): string {
-  const konu = item.ham.slice(0, 80) + (item.ham.length > 80 ? '…' : '');
-  return `Diğer (Konusu: ${konu}) Tarih: - Sayı: -${parens(item)}`;
+  return `${item.ham}${parens(item)}`;
 }
 
 // ── §5.2 Şerhler ─────────────────────────────────────────────────────────────
@@ -195,4 +197,22 @@ function sortItems(items: TakyidatItem[]): TakyidatItem[] {
     const yb = Number(b.yevmiye) || 0;
     return ya - yb;
   });
+}
+
+function sortItemsDesc(items: TakyidatItem[]): TakyidatItem[] {
+  return [...items].sort((a, b) => {
+    const ta = a.tescilTarihi || '';
+    const tb = b.tescilTarihi || '';
+    if (ta !== tb) return ta > tb ? -1 : 1;
+    const ya = Number(a.yevmiye) || 0;
+    const yb = Number(b.yevmiye) || 0;
+    return yb - ya;
+  });
+}
+
+function renderEklentiItem(item: EklentiDisplayItem): string {
+  const tarih = isoToDisplay(item.tescilTarihi);
+  const yev   = item.yevmiye;
+  const suffix = (tarih || yev) ? ` (${tarih} tarih, ${yev} yevmiye)` : '';
+  return `- ${item.tanim} (Tip: ${item.tip})${suffix}`;
 }
