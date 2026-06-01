@@ -54,24 +54,32 @@ const OVERPASS_ENDPOINTS = [
 async function fetchPOIs(latRaw: number, lngRaw: number): Promise<POI[]> {
   const lat   = Number(latRaw);
   const lng   = Number(lngRaw);
-  const delta = 0.0135; // ~1.5 km
+  const delta = 0.027; // ~3 km yarıçap (daha geniş alan)
   const s = (lat - delta).toFixed(6);
   const w = (lng - delta).toFixed(6);
   const n = (lat + delta).toFixed(6);
   const e = (lng + delta).toFixed(6);
   const bbox = `${s},${w},${n},${e}`;
 
+  // nwr = node + way + relation (okul/cami/hastane için tüm geometri tipleri)
+  // highway: primary/secondary + trunk/motorway/tertiary de eklendi
   const query = [
-    '[out:json][timeout:25];',
+    '[out:json][timeout:30];',
     '(',
-    `  node["amenity"="school"](${bbox});`,
-    `  node["amenity"="place_of_worship"](${bbox});`,
-    `  node["amenity"="hospital"](${bbox});`,
+    `  nwr["amenity"="school"](${bbox});`,
+    `  nwr["amenity"="place_of_worship"](${bbox});`,
+    `  nwr["amenity"="hospital"](${bbox});`,
+    `  nwr["amenity"="clinic"](${bbox});`,
+    `  way["highway"="motorway"](${bbox});`,
+    `  way["highway"="trunk"](${bbox});`,
     `  way["highway"="primary"](${bbox});`,
     `  way["highway"="secondary"](${bbox});`,
+    `  way["highway"="tertiary"](${bbox});`,
     ');',
-    'out center;',
+    'out center tags;',
   ].join('\n');
+
+  console.log(`[location-report] Overpass query bbox: ${bbox}`);
 
   let lastError: Error | null = null;
 
@@ -104,8 +112,9 @@ async function fetchPOIs(latRaw: number, lngRaw: number): Promise<POI[]> {
       }
 
       const json = await res.json();
-      console.log(`[location-report] Overpass OK (${endpoint}), elements: ${json.elements?.length ?? 0}`);
-      return parseElements(json.elements ?? [], lat, lng);
+      const elems = json.elements ?? [];
+      console.log(`[location-report] Overpass OK (${endpoint}), elements: ${elems.length}, types: ${[...new Set(elems.map((e: {type:string}) => e.type))].join(',')}`);
+      return parseElements(elems, lat, lng);
     } catch (err) {
       clearTimeout(timeoutId);
       lastError = err as Error;
@@ -122,6 +131,15 @@ const TYPE_MAP: Record<string, string> = {
   school:           'okul',
   place_of_worship: 'cami',
   hospital:         'hastane',
+  clinic:           'hastane',
+};
+
+const HIGHWAY_MAP: Record<string, string> = {
+  motorway:  'ana yol',
+  trunk:     'ana yol',
+  primary:   'ana yol',
+  secondary: 'ikincil yol',
+  tertiary:  'ikincil yol',
 };
 
 function parseElements(
@@ -152,10 +170,8 @@ function parseElements(
     let type = '';
     if (tags.amenity && TYPE_MAP[tags.amenity]) {
       type = TYPE_MAP[tags.amenity];
-    } else if (tags.highway === 'primary') {
-      type = 'ana yol';
-    } else if (tags.highway === 'secondary') {
-      type = 'ikincil yol';
+    } else if (tags.highway && HIGHWAY_MAP[tags.highway]) {
+      type = HIGHWAY_MAP[tags.highway];
     } else {
       continue;
     }
