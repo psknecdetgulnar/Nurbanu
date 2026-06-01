@@ -185,7 +185,9 @@ function parens(item: TakyidatItem): string {
   const d = item.tescilTarihi ? isoToDisplay(item.tescilTarihi) : '';
   const y = item.yevmiye || '';
   if (!d && !y) return ' (Tarih ve yevmiye bilgisi bulunmamaktadır.)';
-  return ` (${d} tarih, ${y} yevmiye)`;
+  const tarihStr   = d || 'Tarih bilgisi bulunmamaktadır.';
+  const yevmiyeStr = y || 'Yevmiye bilgisi bulunmamaktadır.';
+  return ` (${tarihStr} tarih, ${yevmiyeStr} yevmiye)`;
 }
 
 function sortItems(items: TakyidatItem[]): TakyidatItem[] {
@@ -213,6 +215,8 @@ function sortItemsDesc(items: TakyidatItem[]): TakyidatItem[] {
 function renderEklentiItem(item: EklentiDisplayItem): string {
   const tarih = isoToDisplay(item.tescilTarihi);
   const yev   = item.yevmiye;
-  const suffix = (tarih || yev) ? ` (${tarih} tarih, ${yev} yevmiye)` : ' (Tarih ve yevmiye bilgisi bulunmamaktadır.)';
+  const tarihStr   = tarih || 'Tarih bilgisi bulunmamaktadır.';
+  const yevmiyeStr = yev   || 'Yevmiye bilgisi bulunmamaktadır.';
+  const suffix = (tarih || yev) ? ` (${tarihStr} tarih, ${yevmiyeStr} yevmiye)` : ' (Tarih ve yevmiye bilgisi bulunmamaktadır.)';
   return `- ${item.tanim} (Tip: ${item.tip})${suffix}`;
 }
