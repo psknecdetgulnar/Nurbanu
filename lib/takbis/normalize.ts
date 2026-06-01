@@ -198,7 +198,6 @@ function normalizeIpotek(ip: Ipotek): TakyidatItem {
   const tescilText = ip.tescilTarihYevmiye || ip.tesisTarihYevmiye || '';
   const { tescilISO, yevmiye } = extractDateYevmiye(tescilText);
 
-  // dereceSira: önce alan, yoksa faiz içinden çek
   const derece = ip.dereceSira
     || ip.faiz.match(/(\d+\/\d+)/)?.[1]
     || '';
@@ -207,14 +206,25 @@ function normalizeIpotek(ip: Ipotek): TakyidatItem {
     ? String(ip.borc)
     : String(ip.borc || '');
 
-  // Alacaklı: "(SN:40) TÜRKİYE İŞ BANKASI" → "TÜRKİYE İŞ BANKASI"
   const alacakli = (ip.alacakli || '')
     .replace(/^\(SN:\d+\)\s*/i, '')
     .trim();
 
+  // ── Doğrulama: kritik alanlar boşsa parse hatası olarak işaretle ───────
+  const missing: string[] = [];
+  if (!alacakli)  missing.push('lehdar');
+  if (!derece)    missing.push('derece');
+  if (!bedel)     missing.push('bedel');
+  if (!tescilISO) missing.push('tarih');
+  if (!yevmiye)   missing.push('yevmiye');
+
+  const ham = missing.length > 0
+    ? `[PARSE HATASI — eksik: ${missing.join(', ')}] ${alacakli || ip.alacakli || ''}`
+    : `${alacakli} lehine ${derece} dereceden ipotek`;
+
   return {
     tip: 'ipotek',
-    ham: `${alacakli} lehine ${derece} dereceden ipotek`,
+    ham,
     merci: alacakli,
     kararTarihi: '',
     esasNo: '',

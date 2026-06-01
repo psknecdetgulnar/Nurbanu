@@ -164,10 +164,15 @@ function renderIIK150c(item: TakyidatItem): string {
 // ── §5.3 Rehinler ────────────────────────────────────────────────────────────
 
 function renderIpotek(item: TakyidatItem): string {
-  const derece = item.extra?.['derece'] || '?';
-  const bedel  = formatPara(item.bedel);
-  const tarih  = isoToDisplay(item.tescilTarihi);
-  return `${item.alacakli} lehine ${derece} dereceden ${bedel} TL bedelle ${tarih} tarih, ${item.yevmiye} yevmiye ile tesis edilmiş ipotek kaydı görülmüştür.`;
+  // Parse hatası varsa ham alanını öne çıkar
+  if (item.ham.startsWith('[PARSE HATASI')) {
+    return item.ham;
+  }
+  const derece  = item.extra?.['derece'] || '?';
+  const bedel   = formatPara(item.bedel)  || '?';
+  const tarih   = isoToDisplay(item.tescilTarihi) || '?';
+  const yevmiye = item.yevmiye || '?';
+  return `${item.alacakli} lehine ${derece} dereceden ${bedel} TL bedelle ${tarih} tarih, ${yevmiye} yevmiye ile tesis edilmiş ipotek kaydı görülmüştür.`;
 }
 
 // ---------------------------------------------------------------------------

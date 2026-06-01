@@ -215,52 +215,101 @@ function parseMalikRow(rowText: string): Malik {
 // ---------------------------------------------------------------------------
 // İpotek table
 // ---------------------------------------------------------------------------
+
+// Watermark / column-header satırları — veri içeriği değil
+const IPOTEK_NOISE_RE =
+  /^(MÜLK[İI]YETE\s+A[İI]T\s+REH[İI]N|[İI]POTEK\s+B[İI]LG[İI]|Alacaklı|Müşterek\s*Mi|Borç\s*TL|Faiz\s*\(%|Derece.*S[ıi]ra|Süre|Tesis\s+Tarih|Tescil\s+Tarih|Borçlu\s+Malik|Malik\s+Borç|BİLGİ\s+AMAÇLIDIR|Sayfa\s+\d)/i;
+
 function parseIpotekler(sectionText: string): Ipotek[] {
   if (!sectionText) return [];
   const rows: Ipotek[] = [];
   const lines = sectionText.split('\n').map((l) => l.trim()).filter(Boolean);
-  const dataLines = lines.filter(
-    (l) => !/^MÜLK[İI]YETE\s+A[İI]T\s+REH[İI]N|^[İI]POTEK\s+B[İI]LG[İI]|^Alacaklı/i.test(l)
-  );
+
+  // Watermark ve sütun başlığı satırlarını at
+  const dataLines = lines.filter((l) => !IPOTEK_NOISE_RE.test(l));
 
   let current: string[] | null = null;
   for (const line of dataLines) {
-    const isNew =
-      /VKN\s*:\s*\d{10}/.test(line) ||
-      (/(?:\bA\.Ş\b|\bBANK|\bKREDİ|\bFİNANS)/i.test(line) && current === null);
-    if (isNew) {
+    if (/^\(SN:\d+\)/i.test(line)) {
+      // Her TAKBIS ipotek satırı (SN:NNN) ile başlar — kesin row başlangıcı
       if (current) rows.push(parseIpotekRow(current));
       current = [line];
     } else if (current) {
-      current.push(line);
+      const sofar = current.join(' ');
+      if (!/\b(Hayır|Evet)\b/i.test(sofar)) {
+        // Henüz Hayır/Evet görülmedi → banka adı devam ediyor
+        current[0] = current[0] + ' ' + line;
+      } else {
+        current.push(line);
+      }
     }
+    // (SN:) öncesi satırlar atlanır
   }
   if (current) rows.push(parseIpotekRow(current));
   return rows;
 }
 
 function parseIpotekRow(rowLines: string[]): Ipotek {
-  const full = rowLines.join(' ');
-  const alacakli = (get(full, /^(.+?)\s+(?:VKN|Hayır|Evet)/i) || rowLines[0] || '')
-    .replace(/^\(SN:\d+\)\s*/, '')
-    .trim();
+  const full = rowLines.join(' ').replace(/\s+/g, ' ').trim();
+
+  // ── 1. (SN:NNN) önekini kaldır ────────────────────────────────────────
+  const stripped = full.replace(/^\(SN:\d+\)\s*/i, '').trim();
+
+  // ── 2. Hayır/Evet noktasına kadar = alacaklı (banka adı) ──────────────
+  const musterekSplit = stripped.match(/^([\s\S]+?)\s+(Hayır|Evet)\s+([\s\S]*)$/i);
+  const alacakli   = (musterekSplit ? musterekSplit[1] : stripped).trim();
+  const musterekMi = musterekSplit ? musterekSplit[2] : 'Hayır';
+  const data       = musterekSplit ? musterekSplit[3] : '';
+
+  // ── 3. Borç — Türkçe binlik ayraçlı format (5.000.000,00 veya 5.000.000)
+  const borcMatch =
+    data.match(/\b(\d{1,3}(?:\.\d{3})+(?:,\d{2})?)\b/) ??
+    data.match(/\b(\d{4,}(?:,\d{2})?)\b/);
+  const borcStr = borcMatch?.[1] ?? '';
+  const borc    = borcStr ? toNum(borcStr) : '';
+
+  // ── 4. Faiz (DEĞİŞKEN veya %N.N) ──────────────────────────────────────
+  const faiz = (
+    data.match(/\b(DEĞİŞKEN)\b/i)?.[1] ??
+    data.match(/(%\s*[\d,.]+[^\s,;]*|[\d,.]+\s*%[^\s,;]*)/)?.[1] ??
+    ''
+  ).trim();
+
+  // ── 5. Derece/Sıra — N/N, küçük sayılar (tarih değil) ─────────────────
+  const dereceSira = data.match(/\b([1-9]\d?\/[1-9]\d?)\b/)?.[1] ?? '';
+
+  // ── 6. Tarihler: DD-MM-YYYY HH:MM — ilk=tesis, ikinci=tescil ──────────
+  const dateMatches = [...data.matchAll(/(\d{2}-\d{2}-\d{4})\s+\d{2}:\d{2}/g)];
+  const tesisTarih  = dateMatches[0]?.[1] ?? '';
+  const tescilTarih = dateMatches[1]?.[1] ?? '';
+
+  // ── 7. Yevmiye: her tarihten hemen sonraki 4-6 haneli sayı ─────────────
+  let tesisYev  = '';
+  let tescilYev = '';
+  if (dateMatches[0]) {
+    const after = data.slice((dateMatches[0].index ?? 0) + dateMatches[0][0].length);
+    tesisYev = after.match(/^\s*[-–]?\s*(\d{4,6})\b/)?.[1] ?? '';
+  }
+  if (dateMatches[1]) {
+    const after = data.slice((dateMatches[1].index ?? 0) + dateMatches[1][0].length);
+    tescilYev = after.match(/^\s*[-–]?\s*(\d{4,6})\b/)?.[1] ?? '';
+  }
+
+  // extractDateYevmiye "DD-MM-YYYY NNNNN" formatını fallback'te çözer
+  const tesisTarihYevmiye  = tesisTarih  ? `${tesisTarih} ${tesisYev}`.trim()  : '';
+  const tescilTarihYevmiye = tescilTarih ? `${tescilTarih} ${tescilYev}`.trim() : '';
 
   return {
     alacakli,
-    musterekMi:
-      get(full, /Müşterek\s+Mi\s*[:\-]?\s*(Evet|Hayır)/i) ||
-      (/Müşterek/i.test(full) ? 'Evet' : 'Hayır'),
-    borc: toNum(get(full, /([\d.,]+)\s*TL/i, /Borç\s*[:\-]?\s*([\d.,]+)/i)),
-    faiz: get(full, /(%[\d]+[^,;\n]+)/),
-    dereceSira: get(full, /Derece\s*[:/]\s*(\d+\/\d+)/i, /(\d+\/\d+)\s*Derece/i),
-    sure: get(full, /Süre\s*[:\-]?\s*([A-Za-z0-9.]+)/i),
-    tesisTarihYevmiye: get(
-      full,
-      /Tesis\s*(?:Tarih|Kurum)?\s*[:\-]?\s*([\d.\-\/]+)/i
-    ),
-    borcluMalik: get(full, /Borçlu\s*(?:Malik)?\s*[:\-]?\s*(.+?)(?=Malik\s+Borç|Tescil|$)/i),
-    malikBorc: get(full, /Malik\s+Borç\s*[:\-]?\s*([\d.,]+)/i),
-    tescilTarihYevmiye: get(full, /Tescil\s*(?:Tarih)?\s*[:\-]?\s*([\d.\-\/]+)/i),
+    musterekMi,
+    borc,
+    faiz,
+    dereceSira,
+    sure: '',
+    tesisTarihYevmiye,
+    borcluMalik: '',
+    malikBorc: '',
+    tescilTarihYevmiye,
   };
 }
 
