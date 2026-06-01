@@ -73,10 +73,26 @@ export default function KonumRaporlamaPage() {
 
   const fetchCredits = async (uid: string) => {
     const sb = createClient();
-    const { data } = await sb.from('user_credits')
+    const { data, error } = await sb.from('user_credits')
       .select('remaining, plan_type, reset_date')
       .eq('user_id', uid).single();
-    if (!data) return;
+
+    if (!data || error) {
+      // Tablo kurulmamış veya bu kullanıcının satırı yok → otomatik oluştur
+      const { error: insertError } = await sb.from('user_credits').upsert({
+        user_id: uid,
+        remaining: 15,
+        reset_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        plan_type: 'trial',
+      }, { onConflict: 'user_id' });
+
+      if (!insertError) {
+        setCredits({ remaining: 15, planType: 'trial', isExpired: false });
+      }
+      // Tablo hiç yoksa (SQL çalıştırılmamış) upsert de hata verir → credits null kalır
+      return;
+    }
+
     const expired = data.plan_type === 'trial' && new Date(data.reset_date) < new Date();
     setCredits({ remaining: data.remaining, planType: data.plan_type, isExpired: expired });
   };
@@ -98,8 +114,18 @@ export default function KonumRaporlamaPage() {
 
   // ── Rapor oluştur ──────────────────────────────────────────────────────────
 
-  const canGenerate = !!pin && !!il && !!ilce && !!userId && !loading &&
-    credits && !credits.isExpired && credits.remaining > 0;
+  // Hangi koşul eksik → kullanıcıya göster
+  const disabledReason = !il || !ilce
+    ? 'İl ve ilçe seçin'
+    : !pin
+    ? 'Haritada bir konum seçin (tıklayın)'
+    : credits?.isExpired
+    ? 'Deneme süresi doldu'
+    : credits !== null && credits.remaining <= 0
+    ? 'Bu ayki hakkınız doldu'
+    : null;
+
+  const canGenerate = !!pin && !!il && !!ilce && !!userId && !loading && !disabledReason;
 
   const handleGenerate = async () => {
     if (!canGenerate) return;
@@ -295,6 +321,12 @@ export default function KonumRaporlamaPage() {
               </span>
             ) : 'Raporu Oluştur'}
           </button>
+
+          {disabledReason && (
+            <p className="text-xs text-center text-amber-400/80">
+              ⚠ {disabledReason}
+            </p>
+          )}
 
           <p className="text-[10px] text-text-muted/60 text-center">
             Raporlar sistemimizde saklanmamaktadır.
