@@ -27,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="tr"
+      suppressHydrationWarning
       className={`${GeistSans.variable} ${inter.variable} ${jetbrainsMono.variable}`}
     >
       {/* Anti-FOUC: set theme class before first paint */}

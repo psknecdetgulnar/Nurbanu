@@ -11,7 +11,11 @@ export async function signIn(email: string, password: string) {
 
 export async function signUp(email: string, password: string) {
   const supabase = createClient();
-  const result = await supabase.auth.signUp({ email, password });
+  const result = await supabase.auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+  });
 
   // Create profile row on successful registration
   if (result.data.user && !result.error) {
@@ -41,6 +45,6 @@ export async function getUser() {
 export async function resetPassword(email: string) {
   const supabase = createClient();
   return supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/auth/callback`,
+    redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
   });
 }
