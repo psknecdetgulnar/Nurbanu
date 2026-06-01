@@ -47,40 +47,69 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number): numb
 const OVERPASS_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  'https://overpass.openstreetmap.ru/api/interpreter',
 ];
 
-async function fetchPOIs(lat: number, lng: number): Promise<POI[]> {
+async function fetchPOIs(latRaw: number, lngRaw: number): Promise<POI[]> {
+  const lat   = Number(latRaw);
+  const lng   = Number(lngRaw);
   const delta = 0.0135; // ~1.5 km
-  const bbox  = `${lat - delta},${lng - delta},${lat + delta},${lng + delta}`;
+  const s = (lat - delta).toFixed(6);
+  const w = (lng - delta).toFixed(6);
+  const n = (lat + delta).toFixed(6);
+  const e = (lng + delta).toFixed(6);
+  const bbox = `${s},${w},${n},${e}`;
 
-  const query = `
-[out:json][timeout:25];
-(
-  node["amenity"="school"](${bbox});
-  node["amenity"="place_of_worship"](${bbox});
-  node["amenity"="hospital"](${bbox});
-  way["highway"="primary"](${bbox});
-  way["highway"="secondary"](${bbox});
-);
-out center;
-`.trim();
+  const query = [
+    '[out:json][timeout:25];',
+    '(',
+    `  node["amenity"="school"](${bbox});`,
+    `  node["amenity"="place_of_worship"](${bbox});`,
+    `  node["amenity"="hospital"](${bbox});`,
+    `  way["highway"="primary"](${bbox});`,
+    `  way["highway"="secondary"](${bbox});`,
+    ');',
+    'out center;',
+  ].join('\n');
 
   let lastError: Error | null = null;
 
   for (const endpoint of OVERPASS_ENDPOINTS) {
+    // AbortController ile timeout (AbortSignal.timeout Node ≥17.3 gerektiriyor)
+    const ctrl      = new AbortController();
+    const timeoutId = setTimeout(() => ctrl.abort(), 28000);
+
     try {
       const res = await fetch(endpoint, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept':       'application/json',
+          'User-Agent':   'NurbanDeğerleme/1.0',
+        },
         body:    `data=${encodeURIComponent(query)}`,
-        signal:  AbortSignal.timeout(25000),
+        signal:  ctrl.signal,
+        cache:   'no-store',
       });
-      if (!res.ok) throw new Error(`Overpass HTTP ${res.status}`);
+      clearTimeout(timeoutId);
+
+      // 429 = rate limit, 406/503 = geçici hata → sonraki endpoint'e geç
+      if (res.status === 429 || res.status === 406 || res.status === 503) {
+        throw new Error(`Overpass HTTP ${res.status} (rate limit / unavailable)`);
+      }
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`Overpass HTTP ${res.status}: ${txt.slice(0, 200)}`);
+      }
 
       const json = await res.json();
+      console.log(`[location-report] Overpass OK (${endpoint}), elements: ${json.elements?.length ?? 0}`);
       return parseElements(json.elements ?? [], lat, lng);
     } catch (err) {
+      clearTimeout(timeoutId);
       lastError = err as Error;
+      console.error(`[location-report] Overpass failed (${endpoint}):`, lastError.message);
     }
   }
 
@@ -179,14 +208,15 @@ export async function POST(req: NextRequest) {
     const consumed = await consumeCredit(user.id);
     if (!consumed) return NextResponse.json({ error: 'Kredi düşülemedi' }, { status: 403 });
 
-    // POI çek
-    let pois: POI[];
+    // POI çek (başarısız olursa boş liste ile devam et, kredi iade etme)
+    let pois: POI[] = [];
+    let poiWarning: string | null = null;
     try {
       pois = await fetchPOIs(lat, lng);
-    } catch {
-      // Başarısız → kredi iade et
-      await refundCredit(user.id);
-      return NextResponse.json({ error: 'Harita verisi alınamadı. Lütfen tekrar deneyin.' }, { status: 502 });
+    } catch (fetchErr) {
+      const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+      console.error('[location-report] fetchPOIs failed:', msg);
+      poiWarning = 'OSM harita verisi şu anda alınamadı (sunucu meşgul olabilir). Konum raporu POI bilgisi olmadan oluşturuldu.';
     }
 
     // Rapor JSON oluştur (içerik KAYDEDILMEZ)
@@ -199,6 +229,7 @@ export async function POST(req: NextRequest) {
         generatedAt: new Date().toISOString(),
       },
       pois,
+      poiWarning,
       disclaimer: DISCLAIMER,
     });
   } catch (err) {

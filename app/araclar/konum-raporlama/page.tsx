@@ -17,6 +17,7 @@ interface POI     { name: string; type: string; distance: number }
 interface Report  {
   summary: { il: string; ilce: string; mahalle: string; ada?: string; parsel?: string; lat: number; lng: number; generatedAt: string };
   pois: POI[];
+  poiWarning?: string | null;
   disclaimer: string;
 }
 
@@ -376,6 +377,11 @@ export default function KonumRaporlamaPage() {
               {/* POI tablosu */}
               <div>
                 <p className="text-xs font-mono text-text-muted tracking-wider mb-2">ÇEVRE ANALİZİ ({report.pois.length} nokta)</p>
+                {report.poiWarning && (
+                  <div className="mb-3 bg-amber-400/10 border border-amber-400/30 rounded-lg px-3 py-2.5 text-xs text-amber-400">
+                    ⚠ {report.poiWarning}
+                  </div>
+                )}
                 {report.pois.length === 0 ? (
                   <p className="text-sm text-text-muted">Bu alanda kayıtlı POI bulunamadı.</p>
                 ) : (
