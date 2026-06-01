@@ -3,55 +3,126 @@
 @tailwind utilities;
 
 @layer base {
+  /* ── Dark mode — default ─────────────────────────────────────────────── */
   :root {
-    --border-subtle: rgba(255, 255, 255, 0.08);
-    --border-bright: rgba(255, 255, 255, 0.15);
-    --accent-glow:   rgba(94, 106, 210, 0.3);
+    /* Surface tiers (space-separated RGB for Tailwind opacity modifiers) */
+    --surface-base:              8 9 10;
+    --surface-raised:            12 13 14;
+    --surface-overlay:           22 23 24;
+    --surface-dim:               18 19 21;
+    --surface-container:         31 32 33;
+    --surface-container-high:    41 42 43;
+    --surface-container-highest: 52 53 54;
+    /* Text */
+    --on-surface:                227 226 227;
+    --on-surface-variant:        198 197 213;
+    --text-muted:                139 147 161;
+    /* Primary */
+    --primary:                   189 194 255;
+    --primary-container:         94 106 210;
+    --on-primary:                18 31 139;
+    --on-primary-container:      253 250 255;
+    /* Secondary */
+    --secondary:                 93 230 255;
+    --secondary-container:       0 203 230;
+    --on-secondary:              0 54 62;
+    /* Tertiary */
+    --tertiary:                  255 184 103;
+    /* Error */
+    --error:                     255 180 171;
+    --error-container:           147 0 10;
+    /* Outline */
+    --outline:                   144 143 158;
+    --outline-variant:           69 70 82;
+    /* Borders */
+    --border-subtle:             rgba(255, 255, 255, 0.08);
+    --border-bright:             rgba(255, 255, 255, 0.15);
+    /* Glows */
+    --glow-primary-color:        rgba(94, 106, 210, 0.2);
+    --glow-accent-color:         rgba(94, 106, 210, 0.3);
+    /* Brand gradient */
+    --brand-from:                #BDC2FF;
+    --brand-to:                  #5DE6FF;
+    /* Glass surface */
+    --glass-bg:                  rgba(22, 23, 24, 0.85);
   }
 
-  * {
-    border-color: rgba(255, 255, 255, 0.08);
+  /* ── Light mode ──────────────────────────────────────────────────────── */
+  .light {
+    --surface-base:              244 245 247;
+    --surface-raised:            255 255 255;
+    --surface-overlay:           236 237 240;
+    --surface-dim:               232 233 236;
+    --surface-container:         232 233 236;
+    --surface-container-high:    221 222 226;
+    --surface-container-highest: 210 211 216;
+    /* Text */
+    --on-surface:                24 25 27;
+    --on-surface-variant:        59 58 80;
+    --text-muted:                96 104 116;
+    /* Primary — darkened for legibility on light bg */
+    --primary:                   72 84 187;
+    --primary-container:         102 114 216;
+    --on-primary:                255 255 255;
+    --on-primary-container:      253 250 255;
+    /* Secondary */
+    --secondary:                 0 122 138;
+    --secondary-container:       0 171 192;
+    --on-secondary:              255 255 255;
+    /* Tertiary */
+    --tertiary:                  160 100 0;
+    /* Error */
+    --error:                     186 26 26;
+    --error-container:           255 218 214;
+    /* Outline */
+    --outline:                   114 115 132;
+    --outline-variant:           196 198 216;
+    /* Borders */
+    --border-subtle:             rgba(0, 0, 0, 0.08);
+    --border-bright:             rgba(0, 0, 0, 0.15);
+    /* Glows */
+    --glow-primary-color:        rgba(72, 84, 187, 0.15);
+    --glow-accent-color:         rgba(72, 84, 187, 0.2);
+    /* Brand gradient */
+    --brand-from:                #4854BB;
+    --brand-to:                  #007A8A;
+    /* Glass surface */
+    --glass-bg:                  rgba(255, 255, 255, 0.88);
   }
 
-  html {
-    font-family: var(--font-inter), system-ui, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
+  * { border-color: var(--border-subtle); }
+
+  html { font-family: var(--font-inter), system-ui, sans-serif; }
 
   body {
-    background-color: #08090A;
-    color: #E3E2E3;
+    background-color: rgb(var(--surface-base));
+    color: rgb(var(--on-surface));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
 @layer utilities {
-  /* Design system border helpers */
-  .border-subtle  { border-color: rgba(255, 255, 255, 0.08); }
-  .border-bright  { border-color: rgba(255, 255, 255, 0.15); }
+  .border-subtle { border-color: var(--border-subtle); }
+  .border-bright { border-color: var(--border-bright); }
 
-  /* Glassmorphism backdrop */
   .glass {
-    background-color: rgba(22, 23, 24, 0.80);
+    background-color: var(--glass-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
 
-  /* Bento card baseline */
   .bento {
-    background-color: #0C0D0E;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background-color: rgb(var(--surface-raised));
+    border: 1px solid var(--border-subtle);
     border-radius: 0.75rem;
     padding: 1.5rem;
     transition: border-color 0.15s ease;
   }
-  .bento:hover {
-    border-color: rgba(255, 255, 255, 0.15);
-  }
+  .bento:hover { border-color: var(--border-bright); }
 
-  /* Brand gradient text */
   .text-brand {
-    background: linear-gradient(to right, #BDC2FF, #5DE6FF);
+    background: linear-gradient(to right, var(--brand-from), var(--brand-to));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

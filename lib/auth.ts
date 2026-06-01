@@ -37,3 +37,10 @@ export async function getUser() {
   const supabase = createClient();
   return supabase.auth.getUser();
 }
+
+export async function resetPassword(email: string) {
+  const supabase = createClient();
+  return supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/auth/callback`,
+  });
+}

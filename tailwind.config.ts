@@ -9,36 +9,30 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Aura Precision — surface tiers
-        'surface-base':    '#08090A',
-        'surface-raised':  '#0C0D0E',
-        'surface-overlay': '#161718',
-        'surface-dim':     '#121315',
-        surface:           '#121315',
-        'surface-container':       '#1F2021',
-        'surface-container-high':  '#292A2B',
-        'surface-container-highest':'#343536',
-        // Text
-        'on-surface':         '#E3E2E3',
-        'on-surface-variant': '#C6C5D5',
-        'text-muted':         '#8B93A1',
-        // Primary (electric periwinkle)
-        primary:            '#BDC2FF',
-        'primary-container':'#5E6AD2',
-        'on-primary':       '#121F8B',
-        'on-primary-container': '#FDFAFF',
-        // Secondary (cyan)
-        secondary:            '#5DE6FF',
-        'secondary-container':'#00CBE6',
-        'on-secondary':       '#00363E',
-        // Tertiary (amber)
-        tertiary:           '#FFB867',
-        // Borders
-        outline:            '#908F9E',
-        'outline-variant':  '#454652',
-        // Error
-        'error':            '#FFB4AB',
-        'error-container':  '#93000A',
+        // All colors reference CSS variables so they adapt to dark/light themes.
+        // Space-separated RGB format enables Tailwind opacity modifiers (e.g. bg-primary/10).
+        'surface-base':              'rgb(var(--surface-base) / <alpha-value>)',
+        'surface-raised':            'rgb(var(--surface-raised) / <alpha-value>)',
+        'surface-overlay':           'rgb(var(--surface-overlay) / <alpha-value>)',
+        'surface-dim':               'rgb(var(--surface-dim) / <alpha-value>)',
+        'surface-container':         'rgb(var(--surface-container) / <alpha-value>)',
+        'surface-container-high':    'rgb(var(--surface-container-high) / <alpha-value>)',
+        'surface-container-highest': 'rgb(var(--surface-container-highest) / <alpha-value>)',
+        'on-surface':                'rgb(var(--on-surface) / <alpha-value>)',
+        'on-surface-variant':        'rgb(var(--on-surface-variant) / <alpha-value>)',
+        'text-muted':                'rgb(var(--text-muted) / <alpha-value>)',
+        primary:                     'rgb(var(--primary) / <alpha-value>)',
+        'primary-container':         'rgb(var(--primary-container) / <alpha-value>)',
+        'on-primary':                'rgb(var(--on-primary) / <alpha-value>)',
+        'on-primary-container':      'rgb(var(--on-primary-container) / <alpha-value>)',
+        secondary:                   'rgb(var(--secondary) / <alpha-value>)',
+        'secondary-container':       'rgb(var(--secondary-container) / <alpha-value>)',
+        'on-secondary':              'rgb(var(--on-secondary) / <alpha-value>)',
+        tertiary:                    'rgb(var(--tertiary) / <alpha-value>)',
+        outline:                     'rgb(var(--outline) / <alpha-value>)',
+        'outline-variant':           'rgb(var(--outline-variant) / <alpha-value>)',
+        error:                       'rgb(var(--error) / <alpha-value>)',
+        'error-container':           'rgb(var(--error-container) / <alpha-value>)',
       },
       fontFamily: {
         geist: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
@@ -54,18 +48,13 @@ const config: Config = {
         full:    '9999px',
       },
       boxShadow: {
-        // Elevation overlay
-        overlay: '0 20px 40px rgba(0,0,0,0.4)',
-        // Primary action glow
-        'glow-primary': '0 0 15px rgba(94,106,210,0.2)',
-        // Focus/hover accent
-        'glow-accent': '0 0 20px rgba(94,106,210,0.3)',
+        overlay:       '0 20px 40px rgba(0,0,0,0.4)',
+        'glow-primary': '0 0 15px var(--glow-primary-color)',
+        'glow-accent':  '0 0 20px var(--glow-accent-color)',
       },
       backgroundImage: {
-        // Brand gradient: primary → secondary
-        'brand': 'linear-gradient(to right, #BDC2FF, #5DE6FF)',
-        // Subtle radial glow for card hover
-        'glow-radial': 'radial-gradient(ellipse at top, rgba(94,106,210,0.15) 0%, transparent 60%)',
+        brand:        'linear-gradient(to right, var(--brand-from), var(--brand-to))',
+        'glow-radial': 'radial-gradient(ellipse at top, var(--glow-accent-color) 0%, transparent 60%)',
       },
     },
   },

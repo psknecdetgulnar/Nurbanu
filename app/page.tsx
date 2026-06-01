@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { TOOLS } from '@/config/tools';
+import HeroAnimation from '@/components/HeroAnimation';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function Home() {
   const [featured, ...rest] = TOOLS;
@@ -13,10 +15,11 @@ export default function Home() {
           <Link href="/" className="font-geist font-semibold text-on-surface tracking-tight">
             Değerleme Araçları
           </Link>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <Link href="#araclar" className="text-sm text-text-muted hover:text-on-surface transition-colors hidden sm:block">
               Araçlar
             </Link>
+            <ThemeToggle />
             <Link
               href="/login"
               className="text-sm px-4 py-2 rounded-lg bg-primary-container text-on-primary-container font-medium
@@ -30,46 +33,56 @@ export default function Home() {
 
       {/* ── Hero ───────────────────────────────────────────────────────── */}
       <section className="max-w-[1200px] mx-auto px-10 pt-24 pb-20">
-        <p className="font-mono text-xs text-text-muted tracking-widest uppercase mb-5">
-          Gayrimenkul değerleme uzmanları için
-        </p>
+        <div className="flex flex-col lg:flex-row items-center gap-12">
+          {/* Sol: metin */}
+          <div className="flex-1 min-w-0">
+            <p className="font-mono text-xs text-text-muted tracking-widest uppercase mb-5">
+              Gayrimenkul değerleme uzmanları için
+            </p>
 
-        <h1 className="font-geist font-semibold text-[48px] leading-[56px] tracking-[-0.02em] text-white max-w-2xl mb-6">
-          Rapor işini<br />
-          <span className="text-brand">dakikalara indiren</span>{' '}
-          araç kutusu
-        </h1>
+            <h1 className="font-geist font-semibold text-[48px] leading-[56px] tracking-[-0.02em] text-on-surface max-w-2xl mb-6">
+              Rapor işini<br />
+              <span className="text-brand">dakikalara indiren</span>{' '}
+              araç kutusu
+            </h1>
 
-        <p className="text-text-muted max-w-xl leading-[22px] text-sm mb-10">
-          TAKBIS/tapu belgelerini, imar durumlarını ve değerleme hesaplarını saniyeler içinde
-          rapora hazır çıktıya çevirin. Verileriniz cihazınızdan çıkmaz.
-        </p>
+            <p className="text-text-muted max-w-xl leading-[22px] text-sm mb-10">
+              TAKBIS/tapu belgelerini, imar durumlarını ve değerleme hesaplarını saniyeler içinde
+              rapora hazır çıktıya çevirin. Verileriniz cihazınızdan çıkmaz.
+            </p>
 
-        <div className="flex flex-wrap gap-3 mb-10">
-          <Link
-            href="/login"
-            className="px-6 py-2.5 rounded-lg text-sm font-semibold bg-brand text-on-primary
-                       hover:opacity-90 transition-opacity shadow-glow-primary"
-          >
-            Ücretsiz Başla
-          </Link>
-          <Link
-            href="#araclar"
-            className="px-6 py-2.5 rounded-lg text-sm font-medium border border-subtle
-                       hover:border-bright text-on-surface transition-colors"
-          >
-            Araçları İncele
-          </Link>
-        </div>
+            <div className="flex flex-wrap gap-3 mb-10">
+              <Link
+                href="/login"
+                className="px-6 py-2.5 rounded-lg text-sm font-semibold bg-brand text-on-primary
+                           hover:opacity-90 transition-opacity shadow-glow-primary"
+              >
+                Ücretsiz Başla
+              </Link>
+              <Link
+                href="#araclar"
+                className="px-6 py-2.5 rounded-lg text-sm font-medium border border-subtle
+                           hover:border-bright text-on-surface transition-colors"
+              >
+                Araçları İncele
+              </Link>
+            </div>
 
-        {/* Trust strip */}
-        <div className="flex flex-wrap gap-6 text-xs font-mono text-text-muted tracking-wider">
-          {['KVKK uyumlu', 'Veriler cihazda işlenir', 'SPK lisanslı eksperlerce kullanılır'].map((t) => (
-            <span key={t} className="flex items-center gap-2">
-              <span className="w-1 h-1 rounded-full bg-primary opacity-60" />
-              {t}
-            </span>
-          ))}
+            {/* Trust strip */}
+            <div className="flex flex-wrap gap-6 text-xs font-mono text-text-muted tracking-wider">
+              {['KVKK uyumlu', 'Veriler cihazda işlenir', 'SPK lisanslı eksperlerce kullanılır'].map((t) => (
+                <span key={t} className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-primary opacity-60" />
+                  {t}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Sağ: animasyon */}
+          <div className="flex-shrink-0 w-full lg:w-[440px]">
+            <HeroAnimation />
+          </div>
         </div>
       </section>
 

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
+import ThemeProvider from '@/components/ThemeProvider';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -28,7 +29,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="tr"
       className={`${GeistSans.variable} ${inter.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="antialiased">{children}</body>
+      {/* Anti-FOUC: set theme class before first paint */}
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `try{if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light')}catch(e){}` }} />
+      </head>
+      <body className="antialiased">
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }
