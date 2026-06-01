@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
-import { Inter, JetBrains_Mono } from 'next/font/google';
+import { Source_Sans_3, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import ThemeProvider from '@/components/ThemeProvider';
 
-const inter = Inter({
+const inter = Source_Sans_3({
   subsets: ['latin'],
   weight: ['400', '500', '600'],
   variable: '--font-inter',

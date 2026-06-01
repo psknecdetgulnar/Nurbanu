@@ -266,17 +266,17 @@ export default function TakbisOkuyucuPage() {
             {/* İçerik */}
             <div className="bg-surface-container-high rounded-xl overflow-auto max-h-[60vh] border border-subtle">
               {activeTab === 'takyidat' && (
-                <pre className="p-6 text-sm text-on-surface font-mono leading-relaxed whitespace-pre-wrap">
+                <pre className="p-6 text-sm text-on-surface font-inter leading-relaxed whitespace-pre-wrap">
                   {takyidatAll || '(çıktı yok)'}
                 </pre>
               )}
               {activeTab === 'tamrapor' && (
-                <pre className="p-6 text-sm text-on-surface font-mono leading-relaxed whitespace-pre-wrap">
+                <pre className="p-6 text-sm text-on-surface font-inter leading-relaxed whitespace-pre-wrap">
                   {tamRaporAll || '(çıktı yok)'}
                 </pre>
               )}
               {activeTab === 'rawtext' && (
-                <pre className="p-6 text-xs text-tertiary font-mono whitespace-pre-wrap">
+                <pre className="p-6 text-xs text-tertiary font-inter whitespace-pre-wrap">
                   {fileResults.map((r) => `=== ${r.name} ===\n${r.rawText ?? ''}`).join('\n\n')}
                 </pre>
               )}
