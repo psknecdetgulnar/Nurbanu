@@ -1,0 +1,30 @@
+BU BELGE TOPLAM 5 SAYFADAN OLUŞMAKTADIR
+Tarih : 10-12-2019-16:02
+Kaydı Oluşturan : TEST TAPU MÜDÜRLÜĞÜ
+Makbuz No : 123456  Dekont No : 654321  Başvuru No : 789012
+
+TAPU KAYIT BİLGİSİ
+İl / İlçe : TEST / MERKEZ
+Kurum Adı : TEST TAPU MÜDÜRLÜĞÜ
+Mahalle / Köy : ÖRNEK MAHALLESİ
+Mevkii : TEST MEVKİİ
+Cilt / Sayfa No : 1 / 2
+Kayıt Durum : Aktif
+Ada / Parsel : 100 / 1
+AT Yüzölçüm (m2) : 250,00
+Ana Taşınmaz Nitelik : ARSA
+Zemin Tipi : 1
+
+MÜLKİYET BİLGİLERİ
+Sistem No Malik Hisse Metrekare Toplam Metrekare Edinme Sebep/Tarih/Yevmiye
+12345678 AHMET MEHMET YILMAZ 1/1 250,00 250,00 Satış 10-12-2019 5000
+
+MÜLKİYETE AİT REHİN / İPOTEK BİLGİLERİ
+Alacaklı Müşterek Mi Borç TL Faiz(%) Derece/Sıra Süre Tesis Tarih/Yevmiye Borçlu Malik Malik Borç Tescil Tarih/Yevmiye
+(SN:40) TÜRKİYE CUMHURİYETİ ZİRAAT BANKASI A.Ş. Hayır 500.000,00 DEĞİŞKEN 1/1  10-12-2019 16:02 7085 AHMET MEHMET YILMAZ 500.000,00 10-12-2019 16:02 7085
+(SN:41) TÜRKİYE CUMHURİYETİ ZİRAAT BANKASI A.Ş. Hayır 5.000.000,00 DEĞİŞKEN 2/0  10-07-2024 09:15 6560 AHMET MEHMET YILMAZ 5.000.000,00 10-07-2024 09:15 6560
+(SN:42) TÜRKİYE CUMHURİYETİ ZİRAAT BANKASI A.Ş. Hayır 10.000.000,00 DEĞİŞKEN 3/0  06-04-2026 14:30 2998 AHMET MEHMET YILMAZ 10.000.000,00 06-04-2026 14:30 2998
+BİLGİ AMAÇLIDIR
+Sayfa 1/5
+
+XdY3k9mZ2p

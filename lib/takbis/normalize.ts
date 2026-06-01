@@ -202,8 +202,9 @@ function normalizeIpotek(ip: Ipotek): TakyidatItem {
     || ip.faiz.match(/(\d+\/\d+)/)?.[1]
     || '';
 
+  // toFixed(2) ile ondalık kısmı koru: 500000 → "500000.00"
   const bedel = typeof ip.borc === 'number'
-    ? String(ip.borc)
+    ? ip.borc.toFixed(2)
     : String(ip.borc || '');
 
   const alacakli = (ip.alacakli || '')

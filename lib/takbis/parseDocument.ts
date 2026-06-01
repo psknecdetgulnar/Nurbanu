@@ -275,8 +275,8 @@ function parseIpotekRow(rowLines: string[]): Ipotek {
     ''
   ).trim();
 
-  // ── 5. Derece/Sıra — N/N, küçük sayılar (tarih değil) ─────────────────
-  const dereceSira = data.match(/\b([1-9]\d?\/[1-9]\d?)\b/)?.[1] ?? '';
+  // ── 5. Derece/Sıra — N/N veya N/0 (ikinci sayı 0 olabilir) ───────────
+  const dereceSira = data.match(/\b([1-9]\d?\/\d{1,2})\b/)?.[1] ?? '';
 
   // ── 6. Tarihler: DD-MM-YYYY HH:MM — ilk=tesis, ikinci=tescil ──────────
   const dateMatches = [...data.matchAll(/(\d{2}-\d{2}-\d{4})\s+\d{2}:\d{2}/g)];
