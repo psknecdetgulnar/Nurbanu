@@ -1,0 +1,22 @@
+{
+  "file": "neco.pdf",
+  "ipotekler": [
+    {
+      "alacakli": "TÜRKİYE İŞ BANKASI A.Ş.",
+      "borc": 800000,
+      "dereceSira": "1/0",
+      "tesisTarihYevmiye": "06-11-2018 18223",
+      "tescilTarihYevmiye": ""
+    }
+  ],
+  "rehinler": [
+    {
+      "alacakli": "TÜRKİYE İŞ BANKASI A.Ş.",
+      "bedel": "800000.00",
+      "derece": "1/0",
+      "tescilTarihi": "2018-11-06",
+      "yevmiye": "18223"
+    }
+  ],
+  "takyidatRehinBlok": "Rehinler Hanesinde:\n-TÜRKİYE İŞ BANKASI A.Ş. lehine 1/0 dereceden 800000.00 TL bedelle 06.11.2018 tarih, 18223 yevmiye ile tesis edilmiş ipotek kaydı görülmüştür.\n\n20.05.2021 tarihinde alınmış olan Takbis belgesi ve Tapu senedi arasında farklılık bulunmamaktadır."
+}

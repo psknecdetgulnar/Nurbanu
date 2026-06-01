@@ -1,0 +1,50 @@
+{
+  "file": "TKB_202605061452292215.pdf",
+  "ipotekler": [
+    {
+      "alacakli": "TÜRKİYE HALK BANKASI A.Ş.",
+      "borc": 850000,
+      "dereceSira": "1/0",
+      "tesisTarihYevmiye": "16-01-2013 2013",
+      "tescilTarihYevmiye": ""
+    },
+    {
+      "alacakli": "TÜRKİYE HALK BANKASI A.Ş.",
+      "borc": 6000000,
+      "dereceSira": "2/0",
+      "tesisTarihYevmiye": "10-02-2020 2896",
+      "tescilTarihYevmiye": ""
+    },
+    {
+      "alacakli": "TÜRKİYE HALK BANKASI A.Ş.",
+      "borc": 20000000,
+      "dereceSira": "3/0",
+      "tesisTarihYevmiye": "30-01-2023 2613",
+      "tescilTarihYevmiye": ""
+    }
+  ],
+  "rehinler": [
+    {
+      "alacakli": "TÜRKİYE HALK BANKASI A.Ş.",
+      "bedel": "850000.00",
+      "derece": "1/0",
+      "tescilTarihi": "2013-01-16",
+      "yevmiye": "2013"
+    },
+    {
+      "alacakli": "TÜRKİYE HALK BANKASI A.Ş.",
+      "bedel": "6000000.00",
+      "derece": "2/0",
+      "tescilTarihi": "2020-02-10",
+      "yevmiye": "2896"
+    },
+    {
+      "alacakli": "TÜRKİYE HALK BANKASI A.Ş.",
+      "bedel": "20000000.00",
+      "derece": "3/0",
+      "tescilTarihi": "2023-01-30",
+      "yevmiye": "2613"
+    }
+  ],
+  "takyidatRehinBlok": "Rehinler Hanesinde:\n-TÜRKİYE HALK BANKASI A.Ş. lehine 1/0 dereceden 850000.00 TL bedelle 16.01.2013 tarih, 2013 yevmiye ile tesis edilmiş ipotek kaydı görülmüştür.\n-TÜRKİYE HALK BANKASI A.Ş. lehine 2/0 dereceden 6000000.00 TL bedelle 10.02.2020 tarih, 2896 yevmiye ile tesis edilmiş ipotek kaydı görülmüştür.\n-TÜRKİYE HALK BANKASI A.Ş. lehine 3/0 dereceden 20000000.00 TL bedelle 30.01.2023 tarih, 2613 yevmiye ile tesis edilmiş ipotek kaydı görülmüştür.\n\n06.05.2026 tarihinde alınmış olan Takbis belgesi ve Tapu senedi arasında farklılık bulunmamaktadır."
+}

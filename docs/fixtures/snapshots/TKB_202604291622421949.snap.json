@@ -1,0 +1,36 @@
+{
+  "file": "TKB_202604291622421949.pdf",
+  "ipotekler": [
+    {
+      "alacakli": "TÜRKİYE İŞ BANKASI A.Ş.",
+      "borc": 25000000,
+      "dereceSira": "1/0",
+      "tesisTarihYevmiye": "10-11-2025 32060",
+      "tescilTarihYevmiye": ""
+    },
+    {
+      "alacakli": "TÜRKİYE İŞ BANKASI A.Ş.",
+      "borc": 25000000,
+      "dereceSira": "1/0",
+      "tesisTarihYevmiye": "10-11-2025 32060",
+      "tescilTarihYevmiye": ""
+    }
+  ],
+  "rehinler": [
+    {
+      "alacakli": "TÜRKİYE İŞ BANKASI A.Ş.",
+      "bedel": "25000000.00",
+      "derece": "1/0",
+      "tescilTarihi": "2025-11-10",
+      "yevmiye": "32060"
+    },
+    {
+      "alacakli": "TÜRKİYE İŞ BANKASI A.Ş.",
+      "bedel": "25000000.00",
+      "derece": "1/0",
+      "tescilTarihi": "2025-11-10",
+      "yevmiye": "32060"
+    }
+  ],
+  "takyidatRehinBlok": "Rehinler Hanesinde:\n-TÜRKİYE İŞ BANKASI A.Ş. lehine 1/0 dereceden 25000000.00 TL bedelle 10.11.2025 tarih, 32060 yevmiye ile tesis edilmiş ipotek kaydı görülmüştür.\n\n29.04.2026 tarihinde alınmış olan Takbis belgesi ve Tapu senedi arasında farklılık bulunmamaktadır.\nRehinler Hanesinde:\n-TÜRKİYE İŞ BANKASI A.Ş. lehine 1/0 dereceden 25000000.00 TL bedelle 10.11.2025 tarih, 32060 yevmiye ile tesis edilmiş ipotek kaydı görülmüştür.\n\n29.04.2026 tarihinde alınmış olan Takbis belgesi ve Tapu senedi arasında farklılık bulunmamaktadır."
+}

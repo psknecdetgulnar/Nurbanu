@@ -1,0 +1,22 @@
+{
+  "file": "TKB_202604251449195510.pdf",
+  "ipotekler": [
+    {
+      "alacakli": "ZİRAAT KATILIM BANKASI A.Ş.",
+      "borc": 91910000,
+      "dereceSira": "1/0",
+      "tesisTarihYevmiye": "05-10-2023 24965",
+      "tescilTarihYevmiye": ""
+    }
+  ],
+  "rehinler": [
+    {
+      "alacakli": "ZİRAAT KATILIM BANKASI A.Ş.",
+      "bedel": "91910000.00",
+      "derece": "1/0",
+      "tescilTarihi": "2023-10-05",
+      "yevmiye": "24965"
+    }
+  ],
+  "takyidatRehinBlok": "Rehinler Hanesinde:\n-ZİRAAT KATILIM BANKASI A.Ş. lehine 1/0 dereceden 91910000.00 TL bedelle 05.10.2023 tarih, 24965 yevmiye ile tesis edilmiş ipotek kaydı görülmüştür.\n\n25.04.2026 tarihinde alınmış olan Takbis belgesi ve Tapu senedi arasında farklılık bulunmamaktadır."
+}

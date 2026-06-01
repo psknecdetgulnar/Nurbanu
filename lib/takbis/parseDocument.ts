@@ -15,8 +15,15 @@ function get(text: string, ...patterns: RegExp[]): string {
 
 function toNum(s: string): number | string {
   if (!s || !s.trim()) return '';
-  const n = parseFloat(s.trim().replace(/\./g, '').replace(',', '.'));
-  return isNaN(n) ? s.trim() : n;
+  const cleaned = s.trim();
+  // Turkish thousands format: 5.000.000,00 — dots=thousands, comma=decimal
+  if (/^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(cleaned)) {
+    const n = parseFloat(cleaned.replace(/\./g, '').replace(',', '.'));
+    return isNaN(n) ? cleaned : n;
+  }
+  // Plain decimal (500000.00) or integer — use parseFloat directly
+  const n = parseFloat(cleaned.replace(',', '.'));
+  return isNaN(n) ? cleaned : n;
 }
 
 // ---------------------------------------------------------------------------
@@ -216,9 +223,9 @@ function parseMalikRow(rowText: string): Malik {
 // İpotek table
 // ---------------------------------------------------------------------------
 
-// Watermark / column-header satırları — veri içeriği değil
+// Watermark / sütun başlığı / sayfalama / alt-bölüm satırları — veri değil
 const IPOTEK_NOISE_RE =
-  /^(MÜLK[İI]YETE\s+A[İI]T\s+REH[İI]N|[İI]POTEK\s+B[İI]LG[İI]|Alacaklı|Müşterek\s*Mi|Borç\s*TL|Faiz\s*\(%|Derece.*S[ıi]ra|Süre|Tesis\s+Tarih|Tescil\s+Tarih|Borçlu\s+Malik|Malik\s+Borç|BİLGİ\s+AMAÇLIDIR|Sayfa\s+\d)/i;
+  /^(MÜLK[İI]YETE\s+A[İI]T\s+REH[İI]N|[İI]POTEK\s+B[İI]LG[İI]|Alacaklı|Müşterek\s*Mi|Borç\s*TL|Faiz\s*\(%|Derece.*S[ıi]ra|Süre\s*$|Tesis\s+Tarih|Tescil\s+Tarih|Borçlu\s+Malik|Malik\s+Borç|BİLGİ\s+AMAÇLIDIR|Sayfa\s+\d|\d+\s*\/\s*\d+\s*$|^[İI]potek$|^Mi\?\s*S[ıi]ra|[İI]poteğin\s+Konuldu|Ta[şs]ınmaz\s+Hisse|Payda\s+Sebebi|Tarih\s+Yev|Rehine\s+A[İI]t|Ş\s*\/\s*B\s*\/\s*[İI])/i;
 
 function parseIpotekler(sectionText: string): Ipotek[] {
   if (!sectionText) return [];
@@ -231,73 +238,98 @@ function parseIpotekler(sectionText: string): Ipotek[] {
   let current: string[] | null = null;
   for (const line of dataLines) {
     if (/^\(SN:\d+\)/i.test(line)) {
-      // Her TAKBIS ipotek satırı (SN:NNN) ile başlar — kesin row başlangıcı
-      if (current) rows.push(parseIpotekRow(current));
+      if (current) {
+        // Hayır/Evet görülmemiş row = sayfalama artefaktı, at
+        if (/\b(Hayır|Evet)\b/i.test(current.join(' ')))
+          rows.push(parseIpotekRow(current));
+      }
       current = [line];
     } else if (current) {
       const sofar = current.join(' ');
       if (!/\b(Hayır|Evet)\b/i.test(sofar)) {
-        // Henüz Hayır/Evet görülmedi → banka adı devam ediyor
         current[0] = current[0] + ' ' + line;
       } else {
         current.push(line);
       }
     }
-    // (SN:) öncesi satırlar atlanır
   }
-  if (current) rows.push(parseIpotekRow(current));
+  if (current && /\b(Hayır|Evet)\b/i.test(current.join(' ')))
+    rows.push(parseIpotekRow(current));
   return rows;
 }
 
+/**
+ * Continuation satırının BANKA ADI fragment'ı içerip içermediğini kontrol eder.
+ * Sadece Türk bankacılık sektörü anahtar kelimeleri içeren satırlar kabul edilir.
+ * Borçlu şirket adları (LİMİTED, A.Ş. vs.) reddedilir — BANKA olmak zorunda.
+ */
+function extractBankFragment(line: string): string {
+  if (!/\bBANKA/i.test(line)) return '';   // Sadece BANKA içeren satırlar
+  const m = line.match(/^(.+?)(?:\s+VKN\s*:\s*\d|\s+DEĞİŞKEN\b|\s+faizsiz\b|\s*%\s*\d|\s*$)/i);
+  return (m ? m[1] : line).trim();
+}
+
 function parseIpotekRow(rowLines: string[]): Ipotek {
-  const full = rowLines.join(' ').replace(/\s+/g, ' ').trim();
+  // ── 1. Her satırdan (SN:NNN) önekini kaldır ───────────────────────────
+  const cleanLines = rowLines.map(l => l.replace(/^\(SN:\d+\)\s*/i, '').trim());
 
-  // ── 1. (SN:NNN) önekini kaldır ────────────────────────────────────────
-  const stripped = full.replace(/^\(SN:\d+\)\s*/i, '').trim();
+  // ── 2. Hayır/Evet içeren satır = data satırı ──────────────────────────
+  const dataLineIdx = cleanLines.findIndex(l => /\b(Hayır|Evet)\b/i.test(l));
+  const dataLine    = dataLineIdx >= 0 ? cleanLines[dataLineIdx] : cleanLines[0];
 
-  // ── 2. Hayır/Evet noktasına kadar = alacaklı (banka adı) ──────────────
-  const musterekSplit = stripped.match(/^([\s\S]+?)\s+(Hayır|Evet)\s+([\s\S]*)$/i);
-  const alacakli   = (musterekSplit ? musterekSplit[1] : stripped).trim();
-  const musterekMi = musterekSplit ? musterekSplit[2] : 'Hayır';
-  const data       = musterekSplit ? musterekSplit[3] : '';
+  // ── 3. Banka adı = data satırındaki Hayır/Evet öncesi + continuation ──
+  const musterekSplit = dataLine.match(/^([\s\S]+?)\s+(Hayır|Evet)\s+([\s\S]*)$/i);
+  const alacakliBase  = (musterekSplit ? musterekSplit[1] : '').trim();
+  const musterekMi    = musterekSplit ? musterekSplit[2] : 'Hayır';
+  const data          = musterekSplit ? musterekSplit[3] : dataLine;
 
-  // ── 3. Borç — Türkçe binlik ayraçlı format (5.000.000,00 veya 5.000.000)
+  const extraFragments = cleanLines
+    .filter((_, i) => i !== dataLineIdx)
+    .map(extractBankFragment)
+    .filter(Boolean);
+  const alacakli = [alacakliBase, ...extraFragments].filter(Boolean).join(' ').trim();
+
+  // ── 4. Borç: Türkçe binlik (5.000.000,00) veya plain (500000.00) ──────
   const borcMatch =
-    data.match(/\b(\d{1,3}(?:\.\d{3})+(?:,\d{2})?)\b/) ??
-    data.match(/\b(\d{4,}(?:,\d{2})?)\b/);
+    data.match(/\b(\d{1,3}(?:\.\d{3})+(?:,\d{2})?)\b/)  ??  // 5.000.000,00
+    data.match(/\b(\d+\.\d{2})(?=\s*TL|\s|$)/)           ??  // 500000.00
+    data.match(/\b(\d{4,}(?:,\d{2})?)\b/);                   // fallback
   const borcStr = borcMatch?.[1] ?? '';
   const borc    = borcStr ? toNum(borcStr) : '';
 
-  // ── 4. Faiz (DEĞİŞKEN veya %N.N) ──────────────────────────────────────
+  // ── 5. Faiz — % önce, sonra DEĞİŞKEN/faizsiz ─────────────────────────
   const faiz = (
-    data.match(/\b(DEĞİŞKEN)\b/i)?.[1] ??
-    data.match(/(%\s*[\d,.]+[^\s,;]*|[\d,.]+\s*%[^\s,;]*)/)?.[1] ??
+    data.match(/(%\s*[\d,.]+[^\s,;]*)/)?.[1] ??
+    data.match(/\b(DEĞİŞKEN|faizsiz)\b/i)?.[1] ??
     ''
   ).trim();
 
-  // ── 5. Derece/Sıra — N/N veya N/0 (ikinci sayı 0 olabilir) ───────────
+  // ── 6. Derece/Sıra ─────────────────────────────────────────────────────
   const dereceSira = data.match(/\b([1-9]\d?\/\d{1,2})\b/)?.[1] ?? '';
 
-  // ── 6. Tarihler: DD-MM-YYYY HH:MM — ilk=tesis, ikinci=tescil ──────────
+  // ── 7. Tarihler: DD-MM-YYYY HH:MM ─────────────────────────────────────
   const dateMatches = [...data.matchAll(/(\d{2}-\d{2}-\d{4})\s+\d{2}:\d{2}/g)];
   const tesisTarih  = dateMatches[0]?.[1] ?? '';
   const tescilTarih = dateMatches[1]?.[1] ?? '';
 
-  // ── 7. Yevmiye: her tarihten hemen sonraki 4-6 haneli sayı ─────────────
-  let tesisYev  = '';
-  let tescilYev = '';
-  if (dateMatches[0]) {
-    const after = data.slice((dateMatches[0].index ?? 0) + dateMatches[0][0].length);
-    tesisYev = after.match(/^\s*[-–]?\s*(\d{4,6})\b/)?.[1] ?? '';
-  }
-  if (dateMatches[1]) {
-    const after = data.slice((dateMatches[1].index ?? 0) + dateMatches[1][0].length);
-    tescilYev = after.match(/^\s*[-–]?\s*(\d{4,6})\b/)?.[1] ?? '';
+  // ── 8. Yevmiye ─────────────────────────────────────────────────────────
+  // A) Tarihten hemen sonra "- NNNN"
+  // B) Tüm satırlarda "HH:MM - NNNN" kalıbı (sub-table dahil)
+  // C) Continuation'daki son 4-5 haneli sayı (6+ hane = bedel → atla)
+  const fullRowText = cleanLines.join(' ');
+
+  function findYev(dateIdx: number, matchLen: number): string {
+    const immed = data.slice(dateIdx + matchLen).match(/^\s*[-–]?\s*(\d{4,5})\b/)?.[1];
+    if (immed) return immed;
+    const timeYev = [...fullRowText.matchAll(/\d{2}:\d{2}\s*[-–]\s*(\d{4,5})\b/g)];
+    if (timeYev.length > 0) return timeYev[timeYev.length - 1][1];
+    const contText = cleanLines.filter((_, i) => i !== dataLineIdx).join(' ');
+    const all = [...contText.matchAll(/\b(\d{4,5})\b/g)];
+    return all.length > 0 ? all[all.length - 1][1] : '';
   }
 
-  // extractDateYevmiye "DD-MM-YYYY NNNNN" formatını fallback'te çözer
-  const tesisTarihYevmiye  = tesisTarih  ? `${tesisTarih} ${tesisYev}`.trim()  : '';
-  const tescilTarihYevmiye = tescilTarih ? `${tescilTarih} ${tescilYev}`.trim() : '';
+  const tesisYev  = dateMatches[0] ? findYev(dateMatches[0].index ?? 0, dateMatches[0][0].length) : '';
+  const tescilYev = dateMatches[1] ? findYev(dateMatches[1].index ?? 0, dateMatches[1][0].length) : '';
 
   return {
     alacakli,
@@ -306,10 +338,10 @@ function parseIpotekRow(rowLines: string[]): Ipotek {
     faiz,
     dereceSira,
     sure: '',
-    tesisTarihYevmiye,
+    tesisTarihYevmiye:  tesisTarih  ? `${tesisTarih} ${tesisYev}`.trim()  : '',
     borcluMalik: '',
-    malikBorc: '',
-    tescilTarihYevmiye,
+    malikBorc:   '',
+    tescilTarihYevmiye: tescilTarih ? `${tescilTarih} ${tescilYev}`.trim() : '',
   };
 }
 
