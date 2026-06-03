@@ -151,7 +151,7 @@ function parseEklentiler(sectionText: string): EklentiItem[] {
   let pending: Partial<EklentiItem> | null = null;
 
   for (const line of dataLines) {
-    // Row: {sistemNo} {content including tip+tanim+kurum} {DD-MM-YYYY} {HH:MM} [-] [yevmiye]
+    // Primary: row WITH date and time
     const rowMatch = line.match(
       /^(\d{6,12})\s+(.+?)\s+(\d{2}-\d{2}-\d{4})\s+\d{2}:\d{2}\s*[-–]?\s*(\d{3,6})?/
     );
@@ -159,7 +159,7 @@ function parseEklentiler(sectionText: string): EklentiItem[] {
       if (pending) items.push(finalizeEklenti(pending));
       const rawContent = rowMatch[2]
         .replace(/\s+\S+\([^)]+\)\s*[-–]?\s*$/, '')  // trailing "İlçe(VİLAYET) [-]"
-        .replace(/\s+\S+\s*[-–]?\s*$/, '')             // trailing "WORD" or "WORD -"
+        .replace(/\s+\S+\s*[-–]\s*$/, '')              // trailing "WORD -"
         .trim();
       const words = rawContent.split(/\s+/);
       const tip = words[0] ?? '';
@@ -172,6 +172,20 @@ function parseEklentiler(sectionText: string): EklentiItem[] {
         tip,
         tanim,
         tesisTarihYevmiye: tarih + (yev ? ' - ' + yev : ''),
+      };
+    } else if (/^\d{6,12}\s/.test(line)) {
+      // Fallback: eklenti row WITHOUT date/time (Tarih-Yevmiye column is "-" placeholder)
+      if (pending) items.push(finalizeEklenti(pending));
+      const sistemNo = line.match(/^(\d{6,12})/)?.[1] ?? '';
+      const content = line.slice(sistemNo.length).replace(/\s*[-–]\s*$/, '').trim();
+      const words = content.split(/\s+/);
+      const tip = words[0] ?? '';
+      const tanim = words.slice(1, 3).join(' ');
+      pending = {
+        sistemNo,
+        tip,
+        tanim,
+        tesisTarihYevmiye: '',
       };
     } else if (pending && !pending.tesisTarihYevmiye?.includes(' - ') && /^\d{3,6}$/.test(line)) {
       pending.tesisTarihYevmiye = (pending.tesisTarihYevmiye ?? '') + ' - ' + line;
