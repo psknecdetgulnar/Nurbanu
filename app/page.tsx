@@ -37,7 +37,7 @@ export default function Home() {
           {/* Sol: metin */}
           <div className="flex-1 min-w-0">
             <p className="font-mono text-xs text-text-muted tracking-widest uppercase mb-5">
-              Gayrimenkul değerleme uzmanları için
+              Gayrimenkul değerleme uzmanlarına özel
             </p>
 
             <h1 className="font-geist font-semibold text-[48px] leading-[56px] tracking-[-0.02em] text-on-surface max-w-2xl mb-6">
