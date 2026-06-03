@@ -287,9 +287,9 @@ function normalizeTypeAllCaps(word: string): string {
 
 /**
  * Eklenti kaydını formatlar:
- *  Format A — EK:N stil:  "EK:5 DEPO (Tip: Depo)"
- *  Format B — Sayı+tip:   "KÖMÜRLÜK (8 Kömürlük)"
- *  Format C — Varsayılan: "TİP (Tip: tip)"
+ *  Format A — EK:N stil:  "- EK:5 DEPO (Tip: Depo)"
+ *  Format B — Sayı+tip:   "- KÖMÜRLÜK (8 Kömürlük)"
+ *  Format C — Varsayılan: "- TANIM (Tip: tip)"
  */
 function renderEklentiItem(item: EklentiDisplayItem): string {
   const tarih = isoToDisplay(item.tescilTarihi);
@@ -299,21 +299,24 @@ function renderEklentiItem(item: EklentiDisplayItem): string {
   const tanim = item.tanim.trim();
   const tip   = item.tip.trim();
 
-  // Format A: "EK:5 DEPO" → "-EK:5 DEPO (Tip: Depo)"
+  // Format A: "EK:5 DEPO" → "- EK:5 DEPO (Tip: Depo)"
+  // Extract exactly EK:{N} + one type word; any trailing institution noise is dropped.
   if (/^EK:\d+/i.test(tanim)) {
-    return `-${tanim} (Tip: ${normalizeTip(tip)})${suffix}`;
+    const clean = tanim.match(/^(EK:\d+\s+\S+)/i)?.[1] ?? tanim;
+    return `- ${clean} (Tip: ${normalizeTip(tip)})${suffix}`;
   }
 
-  // Format B: "8 KÖMÜRLÜK" → "-KÖMÜRLÜK (8 Kömürlük)"
-  const numMatch = tanim.match(/^(\d+)\s+(.+)$/);
+  // Format B: "8 KÖMÜRLÜK" → "- KÖMÜRLÜK (8 Kömürlük)"
+  // Use \S+ (not .+) to capture only the first type word; rest is institution noise.
+  const numMatch = tanim.match(/^(\d+)\s+(\S+)/);
   if (numMatch) {
     const num      = numMatch[1];
-    const typeWord = numMatch[2].trim();
-    return `-${normalizeTypeAllCaps(typeWord)} (${num} ${toTitleCase(typeWord)})${suffix}`;
+    const typeWord = numMatch[2];
+    return `- ${normalizeTypeAllCaps(typeWord)} (${num} ${toTitleCase(typeWord)})${suffix}`;
   }
 
-  // Format C (varsayılan): "-TANIM (Tip: tip)"
-  return `-${tanim} (Tip: ${normalizeTip(tip)})${suffix}`;
+  // Format C (varsayılan): "- TANIM (Tip: tip)"
+  return `- ${tanim} (Tip: ${normalizeTip(tip)})${suffix}`;
 }
 
 /** Aynı ham+tarih+yevmiye olan kayıtları tekilleştirir (kural 8) */

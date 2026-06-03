@@ -159,11 +159,12 @@ function parseEklentiler(sectionText: string): EklentiItem[] {
       if (pending) items.push(finalizeEklenti(pending));
       const rawContent = rowMatch[2]
         .replace(/\s+\S+\([^)]+\)\s*[-–]?\s*$/, '')  // trailing "İlçe(VİLAYET) [-]"
-        .replace(/\s+\S+\s*[-–]\s*$/, '')              // trailing "WORD [-]"
+        .replace(/\s+\S+\s*[-–]?\s*$/, '')             // trailing "WORD" or "WORD -"
         .trim();
       const words = rawContent.split(/\s+/);
       const tip = words[0] ?? '';
-      const tanim = words.slice(1).join(' ');
+      // Max 2 words for tanim — 3rd word+ is Tesis Kurum institution noise
+      const tanim = words.slice(1, 3).join(' ');
       const tarih = rowMatch[3];
       const yev = rowMatch[4] ?? '';
       pending = {
