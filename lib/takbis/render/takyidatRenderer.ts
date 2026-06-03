@@ -245,11 +245,75 @@ function sortItemsDesc(items: TakyidatItem[]): TakyidatItem[] {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Eklenti görüntüleme yardımcıları
+// ---------------------------------------------------------------------------
+
+/** Yaygın OCR hataları ve büyük/küçük harf tutarsızlıkları için düzeltme tablosu */
+const EKLENTI_TIP_NORMALIZE: Record<string, string> = {
+  'komurluk': 'Kömürlük',
+  'kömürlük': 'Kömürlük',
+  'komurlu':  'Kömürlük',
+  'depo':     'Depo',
+  'garaj':    'Garaj',
+  'otopark':  'Otopark',
+  'bahce':    'Bahçe',
+  'bahçe':    'Bahçe',
+  'siginak':  'Sığınak',
+  'sığınak':  'Sığınak',
+  'teras':    'Teras',
+  'balkon':   'Balkon',
+  'bodrum':   'Bodrum',
+  'kiler':    'Kiler',
+  'ardiye':   'Ardiye',
+  'anbar':    'Anbar',
+};
+
+/** Tip adını normalize eder (OCR düzeltmesi + title case) */
+function normalizeTip(raw: string): string {
+  return EKLENTI_TIP_NORMALIZE[raw.toLowerCase()] ?? raw;
+}
+
+/** Metni title case'e dönüştürür (Türkçe uyumlu) */
+function toTitleCase(s: string): string {
+  return s.split(/\s+/).map(w => w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w).join(' ');
+}
+
+/** Tip kelimesini normalize edip ALL CAPS döndürür (Format B için) */
+function normalizeTypeAllCaps(word: string): string {
+  const corrected = EKLENTI_TIP_NORMALIZE[word.toLowerCase()] ?? word;
+  return corrected.toUpperCase();
+}
+
+/**
+ * Eklenti kaydını formatlar:
+ *  Format A — EK:N stil:  "EK:5 DEPO (Tip: Depo)"
+ *  Format B — Sayı+tip:   "KÖMÜRLÜK (8 Kömürlük)"
+ *  Format C — Varsayılan: "TİP (Tip: tip)"
+ */
 function renderEklentiItem(item: EklentiDisplayItem): string {
   const tarih = isoToDisplay(item.tescilTarihi);
   const yev   = item.yevmiye;
   const suffix = (tarih && yev) ? ` (${tarih} tarih, ${yev} yevmiye)` : ' (Tarih ve yevmiye belirtilmemiştir)';
-  return `-${item.tanim} (Tip: ${item.tip})${suffix}`;
+
+  const tanim = item.tanim.trim();
+  const tip   = item.tip.trim();
+
+  // Format A: "EK:5 DEPO" → "-EK:5 DEPO (Tip: Depo)"
+  if (/^EK:\d+/i.test(tanim)) {
+    return `-${tanim} (Tip: ${normalizeTip(tip)})${suffix}`;
+  }
+
+  // Format B: "8 KÖMÜRLÜK" → "-KÖMÜRLÜK (8 Kömürlük)"
+  const numMatch = tanim.match(/^(\d+)\s+(.+)$/);
+  if (numMatch) {
+    const num      = numMatch[1];
+    const typeWord = numMatch[2].trim();
+    return `-${normalizeTypeAllCaps(typeWord)} (${num} ${toTitleCase(typeWord)})${suffix}`;
+  }
+
+  // Format C (varsayılan): "-TANIM (Tip: tip)"
+  return `-${tanim} (Tip: ${normalizeTip(tip)})${suffix}`;
 }
 
 /** Aynı ham+tarih+yevmiye olan kayıtları tekilleştirir (kural 8) */

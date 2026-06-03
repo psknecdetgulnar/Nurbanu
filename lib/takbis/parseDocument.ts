@@ -157,7 +157,10 @@ function parseEklentiler(sectionText: string): EklentiItem[] {
     );
     if (rowMatch) {
       if (pending) items.push(finalizeEklenti(pending));
-      const rawContent = rowMatch[2].replace(/\s+\S+\s*[-–]\s*$/, '').trim();
+      const rawContent = rowMatch[2]
+        .replace(/\s+\S+\([^)]+\)\s*[-–]?\s*$/, '')  // trailing "İlçe(VİLAYET) [-]"
+        .replace(/\s+\S+\s*[-–]\s*$/, '')              // trailing "WORD [-]"
+        .trim();
       const words = rawContent.split(/\s+/);
       const tip = words[0] ?? '';
       const tanim = words.slice(1).join(' ');
