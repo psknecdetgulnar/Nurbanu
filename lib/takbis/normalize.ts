@@ -13,13 +13,14 @@ import { parseToISO, extractSaat, extractDateYevmiye } from './render/dateUtils'
 // ---------------------------------------------------------------------------
 
 export function normalizeRecord(r: TakbisRecord): BelgeModel {
-  const { beyanlar, serhler, rehinSerhleri } = classifySerhBeyanlar(r.serhBeyanlar);
+  const { beyanlar, hakMukellefiyetler, serhler, rehinSerhleri } = classifySerhBeyanlar(r.serhBeyanlar);
 
   return {
     belge: parseBelge(r),
     tasinmaz: parseTasinmaz(r),
     malikler: parseMaliklerNorm(r.malikler),
     beyanlar,
+    hakMukellefiyetler,
     serhler,
     rehinler: r.ipotekler.map(normalizeIpotek),
     rehinSerhleri,
@@ -106,21 +107,24 @@ function parseMaliklerNorm(malikler: Malik[]): MalikItem[] {
 
 function classifySerhBeyanlar(items: SerhBeyan[]): {
   beyanlar: TakyidatItem[];
+  hakMukellefiyetler: TakyidatItem[];
   serhler: TakyidatItem[];
   rehinSerhleri: TakyidatItem[];
 } {
   const beyanlar: TakyidatItem[] = [];
+  const hakMukellefiyetler: TakyidatItem[] = [];
   const serhler: TakyidatItem[] = [];
   const rehinSerhleri: TakyidatItem[] = [];
 
   for (const sb of items) {
     const item = classifyAndParse(sb);
     if (item.tip === 'iik_150c') rehinSerhleri.push(item);
+    else if (item.tip.startsWith('hak_')) hakMukellefiyetler.push(item);
     else if (item.tip.startsWith('beyan_')) beyanlar.push(item);
     else serhler.push(item);
   }
 
-  return { beyanlar, serhler, rehinSerhleri };
+  return { beyanlar, hakMukellefiyetler, serhler, rehinSerhleri };
 }
 
 function classifyAndParse(sb: SerhBeyan): TakyidatItem {
@@ -132,20 +136,32 @@ function classifyAndParse(sb: SerhBeyan): TakyidatItem {
   let tip: TakyidatTip;
 
   if (/^[Bb]eyan/.test(tur)) {
-    if (/2565\s+Sayılı/i.test(text))           tip = 'beyan_2565';
-    else if (/Yönetim\s+Planı/i.test(text))    tip = 'beyan_yonetim_plani';
-    else if (/YABANCI.*SATILAMAZ|3255\b/i.test(text)) tip = 'beyan_yabanci';
-    else                                        tip = 'beyan_diger';
+    if (/2565\s+Sayılı/i.test(text))                    tip = 'beyan_2565';
+    else if (/Yönetim\s+Planı/i.test(text))             tip = 'beyan_yonetim_plani';
+    else if (/YABANCI.*SATILAMAZ|3255\b/i.test(text))   tip = 'beyan_yabanci';
+    else if (/[İI]ntifa\s+[Hh]akkı/i.test(text))       tip = 'hak_intifa';
+    else if (/[İI]rtifak\s+[Hh]akkı/i.test(text))      tip = 'hak_irtifak';
+    else if (/Üst\s+[Hh]akkı/i.test(text))             tip = 'hak_ust';
+    else if (/[Gg]eçit\s+[Hh]akkı/i.test(text))        tip = 'hak_gecit';
+    else if (/Sükna\s+[Hh]akkı/i.test(text))           tip = 'hak_sukna';
+    else if (/[Kk]aynak\s+[Hh]akkı/i.test(text))       tip = 'hak_kaynak';
+    else                                                 tip = 'beyan_diger';
   } else {
-    // Şerh / Haciz / Tedbir / Rehin aile
+    // Şerh / Haciz / Tedbir / Rehin / İrtifak aile
     const combined = tur + ' ' + text;
-    if (/[İI][İI]K[\s.]+150\s*\/\s*c/i.test(combined))          tip = 'iik_150c';
+    if (/[İI][İI]K[\s.]+150\s*\/\s*c/i.test(combined))             tip = 'iik_150c';
     else if (/satışına\s+gidilmiştir|satış.*[İI]cra/i.test(combined)) tip = 'satis';
-    else if (/Kamu\s+Haczi/i.test(combined))                     tip = 'kamu_haczi';
-    else if (/[İI]crai\s+[Hh]aciz/i.test(combined))             tip = 'icrai_haciz';
-    else if (/[İI]htiyati\s+[Hh]aciz/i.test(combined))          tip = 'ihtiyati_haciz';
-    else if (/[Tt]edbir/i.test(combined))                        tip = 'ihtiyati_haciz';
-    else                                                          tip = 'beyan_diger';
+    else if (/Kamu\s+Haczi/i.test(combined))                         tip = 'kamu_haczi';
+    else if (/[İI]crai\s+[Hh]aciz/i.test(combined))                 tip = 'icrai_haciz';
+    else if (/[İI]htiyati\s+[Hh]aciz/i.test(combined))              tip = 'ihtiyati_haciz';
+    else if (/[Tt]edbir/i.test(combined))                            tip = 'ihtiyati_haciz';
+    else if (/^[İIiı]rtifak\b/i.test(tur) || /[İI]ntifa\s+[Hh]akkı/i.test(combined)) tip = 'hak_intifa';
+    else if (/[İI]rtifak\s+[Hh]akkı/i.test(combined))              tip = 'hak_irtifak';
+    else if (/Üst\s+[Hh]akkı/i.test(combined))                      tip = 'hak_ust';
+    else if (/[Gg]eçit\s+[Hh]akkı/i.test(combined))                 tip = 'hak_gecit';
+    else if (/Sükna\s+[Hh]akkı/i.test(combined))                    tip = 'hak_sukna';
+    else if (/[Kk]aynak\s+[Hh]akkı/i.test(combined))                tip = 'hak_kaynak';
+    else                                                              tip = 'beyan_diger';
   }
 
   // ── Alan çıkarma ──────────────────────────────────────────────────────────
@@ -179,8 +195,8 @@ function classifyAndParse(sb: SerhBeyan): TakyidatItem {
   // Tescil tarihi + yevmiye
   const { tescilISO, yevmiye } = extractDateYevmiye(tesisBilgisi || text);
 
-  // Ham metin temizleme (spec §5.1 not)
-  const ham = cleanHam(text);
+  // Ham metin temizleme — hak_* için kişisel veri de çıkarılır
+  const ham = tip.startsWith('hak_') ? cleanAyniHakHam(text) : cleanHam(text);
 
   // Ek alanlar (Yönetim Planı tarihi vb.)
   const extra: Record<string, string> = {};
@@ -254,6 +270,7 @@ function normalizeEklenti(e: EklentiItem): EklentiDisplayItem {
 function cleanHam(text: string): string {
   return text
     .replace(/\(\s*[ŞşSs]ablon\s*:[^)]*?\)/gi, '')       // Şablon templates
+    .replace(/[ŞşSs]ablon\s*:[^\n]+/gi, '')               // Standalone şablon lines
     .replace(/\(SN:\d+\)\s*/gi, '')
     .replace(/\d+\s*\/\s*\d+\s+BİLGİ\s+AMAÇLIDIR/gi, '')
     .replace(/BİLGİ\s+AMAÇLIDIR/gi, '')
@@ -265,6 +282,23 @@ function cleanHam(text: string): string {
     .replace(/\s+\S+\s+[-–](?=\s)/g, ' ')
     // Remove trailing "MUNICIPALITY -"
     .replace(/\s+\S+\s+[-–]\s*$/, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+/** Ayni hak kayıtları için agresif kişisel veri temizleme */
+function cleanAyniHakHam(text: string): string {
+  return cleanHam(text)
+    // TCKN (11 haneli TC kimlik no)
+    .replace(/\b\d{11}\b/g, '')
+    // KN / TCKN etiketli numaralar
+    .replace(/\bT\.?C\.?\s*Kimlik\s*(?:No|Numaras[ıi])\s*:\s*\d+/gi, '')
+    .replace(/\bTCKN\s*:\s*\d+/gi, '')
+    .replace(/\bKN\s*:\s*\d+/gi, '')
+    // Hak sahibi / lehdar / adına ifadeleri ve sonrasındaki isim
+    .replace(/(?:Hak\s+Sahibi|Lehdar|Lehine|Ad[ıi]na)\s*:\s*[^,()\n]+/gi, '')
+    // Parantez içi kişisel bilgiler (TC/TCKN içeriyorsa)
+    .replace(/\([^)]*(?:\d{11}|TCKN|Hak\s+Sahibi)[^)]*\)/gi, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
 }

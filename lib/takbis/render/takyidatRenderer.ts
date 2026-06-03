@@ -18,16 +18,17 @@ import { isoToDisplay, formatPara } from './config';
 // ---------------------------------------------------------------------------
 
 export function renderTakyidat(model: BelgeModel): string {
-  const { belge, beyanlar, serhler, rehinler, rehinSerhleri, eklentiler } = model;
+  const { belge, beyanlar, hakMukellefiyetler, serhler, rehinler, rehinSerhleri, eklentiler } = model;
 
   const sorted = {
-    beyanlar: sortItemsDesc(beyanlar),   // most-recent first per spec
-    serhler: sortItems(serhler),
-    rehinler: sortItems(rehinler),
-    rehinSerhleri: sortItems(rehinSerhleri),
+    beyanlar: sortItemsDesc(dedup(beyanlar)),
+    hakMukellefiyetler: sortItems(dedup(hakMukellefiyetler ?? [])),
+    serhler: sortItems(dedup(serhler)),
+    rehinler: sortItems(dedup(rehinler)),
+    rehinSerhleri: sortItems(dedup(rehinSerhleri)),
   };
 
-  const hasAny = [sorted.beyanlar, sorted.serhler, sorted.rehinler, sorted.rehinSerhleri]
+  const hasAny = [sorted.beyanlar, sorted.hakMukellefiyetler, sorted.serhler, sorted.rehinler, sorted.rehinSerhleri]
     .some((arr) => arr.length > 0) || (eklentiler?.length ?? 0) > 0;
 
   const acilis = renderAcilis(belge, hasAny);
@@ -37,6 +38,9 @@ export function renderTakyidat(model: BelgeModel): string {
 
   if (sorted.beyanlar.length > 0) {
     haneler.push('Beyanlar Hanesinde:\n' + sorted.beyanlar.map(renderItem).join('\n'));
+  }
+  if (sorted.hakMukellefiyetler.length > 0) {
+    haneler.push('Hak ve Mükellefiyetler Hanesinde:\n' + sorted.hakMukellefiyetler.map(renderItem).join('\n'));
   }
   if (eklentiler && eklentiler.length > 0) {
     haneler.push('Eklenti Bilgileri:\n' + eklentiler.map(renderEklentiItem).join('\n'));
@@ -63,7 +67,7 @@ export function renderTakyidat(model: BelgeModel): string {
 export function countTakyidat(model: BelgeModel): { beyan: number; serh: number; ipotek: number } {
   const uniq = (items: TakyidatItem[]) => new Set(items.map((i) => i.yevmiye || i.ham)).size;
   return {
-    beyan: uniq([...model.beyanlar]),
+    beyan: uniq([...model.beyanlar, ...(model.hakMukellefiyetler ?? [])]),
     serh: uniq([...model.serhler, ...model.rehinSerhleri]),
     ipotek: uniq(model.rehinler),
   };
@@ -94,10 +98,10 @@ function renderKapanis(belge: BelgeModel['belge']): string {
 
 function renderItem(item: TakyidatItem): string {
   try {
-    return '- ' + dispatch(item);
+    return '-' + dispatch(item);
   } catch {
     // Herhangi bir hatada ham metin kullan (§8)
-    return '- ' + item.ham + parens(item);
+    return '-' + item.ham + parens(item);
   }
 }
 
@@ -113,6 +117,13 @@ function dispatch(item: TakyidatItem): string {
     case 'beyan_yonetim_plani': return renderBeyanYonetimPlani(item);
     case 'beyan_yabanci':  return renderBeyanYabanci(item);
     case 'beyan_diger':    return renderBeyanDiger(item);
+    case 'hak_intifa':
+    case 'hak_irtifak':
+    case 'hak_ust':
+    case 'hak_gecit':
+    case 'hak_sukna':
+    case 'hak_kaynak':
+    case 'hak_diger_ayni': return renderHakMukellefiyet(item);
     default:               return item.ham + parens(item);
   }
 }
@@ -124,8 +135,15 @@ function renderBeyan2565(item: TakyidatItem): string {
 }
 
 function renderBeyanYonetimPlani(item: TakyidatItem): string {
-  const planTarihi = item.extra?.['planTarihi'] || item.kararTarihi || '';
-  return `Yönetim Planı : ${planTarihi}${parens(item)}`;
+  const planTarihRaw = item.extra?.['planTarihi'] || item.kararTarihi || '';
+  const d = item.tescilTarihi ? isoToDisplay(item.tescilTarihi) : '';
+  const y = item.yevmiye || '';
+  const hasDateYev = !!(d && y);
+  const formattedPlan = normalizePlanDate(planTarihRaw, hasDateYev ? 'slash' : 'dot');
+  if (!hasDateYev) {
+    return `YÖNETİM PLANI: ${formattedPlan} (Tarih ve yevmiye belirtilmemiştir)`;
+  }
+  return `YÖNETİM PLANI: ${formattedPlan} (${d} tarih, ${y} yevmiye)`;
 }
 
 function renderBeyanYabanci(item: TakyidatItem): string {
@@ -135,6 +153,12 @@ function renderBeyanYabanci(item: TakyidatItem): string {
 }
 
 function renderBeyanDiger(item: TakyidatItem): string {
+  return `${item.ham}${parens(item)}`;
+}
+
+// ── §1/§2 Hak ve Mükellefiyetler ─────────────────────────────────────────────
+
+function renderHakMukellefiyet(item: TakyidatItem): string {
   return `${item.ham}${parens(item)}`;
 }
 
@@ -184,10 +208,19 @@ function renderIpotek(item: TakyidatItem): string {
 function parens(item: TakyidatItem): string {
   const d = item.tescilTarihi ? isoToDisplay(item.tescilTarihi) : '';
   const y = item.yevmiye || '';
-  if (!d && !y) return ' (Tarih ve yevmiye bilgisi bulunmamaktadır.)';
-  const tarihStr   = d || 'Tarih bilgisi bulunmamaktadır.';
-  const yevmiyeStr = y || 'Yevmiye bilgisi bulunmamaktadır.';
-  return ` (${tarihStr} tarih, ${yevmiyeStr} yevmiye)`;
+  if (!d || !y) return ' (Tarih ve yevmiye belirtilmemiştir)';
+  return ` (${d} tarih, ${y} yevmiye)`;
+}
+
+/** Yönetim Planı tarihini istenilen ayraçla (nokta / eğik çizgi) biçimlendirir */
+function normalizePlanDate(raw: string, sep: 'dot' | 'slash'): string {
+  if (!raw) return '';
+  const m = raw.match(/^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})/);
+  if (!m) return raw;
+  const dd = m[1].padStart(2, '0');
+  const mm = m[2].padStart(2, '0');
+  const yy = m[3];
+  return sep === 'dot' ? `${dd}.${mm}.${yy}` : `${dd}/${mm}/${yy}`;
 }
 
 function sortItems(items: TakyidatItem[]): TakyidatItem[] {
@@ -215,8 +248,17 @@ function sortItemsDesc(items: TakyidatItem[]): TakyidatItem[] {
 function renderEklentiItem(item: EklentiDisplayItem): string {
   const tarih = isoToDisplay(item.tescilTarihi);
   const yev   = item.yevmiye;
-  const tarihStr   = tarih || 'Tarih bilgisi bulunmamaktadır.';
-  const yevmiyeStr = yev   || 'Yevmiye bilgisi bulunmamaktadır.';
-  const suffix = (tarih || yev) ? ` (${tarihStr} tarih, ${yevmiyeStr} yevmiye)` : ' (Tarih ve yevmiye bilgisi bulunmamaktadır.)';
-  return `- ${item.tanim} (Tip: ${item.tip})${suffix}`;
+  const suffix = (tarih && yev) ? ` (${tarih} tarih, ${yev} yevmiye)` : ' (Tarih ve yevmiye belirtilmemiştir)';
+  return `-${item.tanim} (Tip: ${item.tip})${suffix}`;
+}
+
+/** Aynı ham+tarih+yevmiye olan kayıtları tekilleştirir (kural 8) */
+function dedup(items: TakyidatItem[]): TakyidatItem[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.ham}|||${item.tescilTarihi}|||${item.yevmiye}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
