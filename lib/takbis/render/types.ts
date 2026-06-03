@@ -10,7 +10,14 @@ export type TakyidatTip =
   | 'beyan_2565'
   | 'beyan_yonetim_plani'
   | 'beyan_yabanci'
-  | 'beyan_diger';
+  | 'beyan_diger'
+  | 'hak_intifa'
+  | 'hak_irtifak'
+  | 'hak_ust'
+  | 'hak_gecit'
+  | 'hak_sukna'
+  | 'hak_kaynak'
+  | 'hak_diger_ayni';
 
 export interface TakyidatItem {
   tip: TakyidatTip;
@@ -73,6 +80,7 @@ export interface BelgeModel {
   tasinmaz: Tasinmaz;
   malikler: MalikItem[];
   beyanlar: TakyidatItem[];
+  hakMukellefiyetler: TakyidatItem[];
   serhler: TakyidatItem[];
   rehinler: TakyidatItem[];
   rehinSerhleri: TakyidatItem[];
