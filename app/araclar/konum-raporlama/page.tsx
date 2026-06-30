@@ -6,26 +6,15 @@ import { useRouter }  from 'next/navigation';
 import Link           from 'next/link';
 import { getUser }    from '@/lib/auth';
 import { createClient } from '@/lib/supabase/client';
+import { poiCategories } from '@/config/poiCategories';
+import type { LocationAnalysisResponse } from '@/config/poiCategories';
 
-// Leaflet SSR-safe
+// Leaflet SSR-safe (pin seçimi için; çıktıda harita yok)
 const KonumMap = dynamic(() => import('@/components/KonumMap'), { ssr: false });
 
 // ── Tipler ───────────────────────────────────────────────────────────────────
 
 interface Region { il: string; lat: number; lng: number; ilceler: { ilce: string; lat: number; lng: number }[] }
-
-interface POI     { name: string; type: string; distance: number }
-interface Report  {
-  summary: { il: string; ilce: string; mahalle: string; ada?: string; parsel?: string; lat: number; lng: number; generatedAt: string };
-  pois: POI[];
-  poiWarning?: string | null;
-  disclaimer: string;
-}
-
-const TYPE_LABEL: Record<string, string> = {
-  okul: 'Okul', cami: 'Cami / İbadet', hastane: 'Hastane / Sağlık',
-  'ana yol': 'Ana Yol', 'ikincil yol': 'İkincil Yol',
-};
 
 const DISCLAIMER = `Bu rapor bilgilendirme amaçlıdır, resmi belge niteliği taşımaz.
 Konum, kullanıcı tarafından harita üzerinde işaretlenmiştir.
@@ -55,11 +44,15 @@ export default function KonumRaporlamaPage() {
   const [pin,      setPin]      = useState<[number, number] | null>(null);
   const [mapReady, setMapReady] = useState(false);
 
+  // Analiz parametreleri
+  const [radiusKm,    setRadiusKm]    = useState('1');
+  const [selectedCats, setSelectedCats] = useState<string[]>([]);
+
   // Rapor state
-  const [loading,  setLoading]  = useState(false);
-  const [report,   setReport]   = useState<Report | null>(null);
-  const [error,    setError]    = useState('');
-  const [copied,   setCopied]   = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [result,  setResult]  = useState<LocationAnalysisResponse | null>(null);
+  const [error,   setError]   = useState('');
+  const [copied,  setCopied]  = useState(false);
 
   // ── Başlangıç ──────────────────────────────────────────────────────────────
 
@@ -68,25 +61,24 @@ export default function KonumRaporlamaPage() {
       if (!data.user) { router.push('/login'); return; }
       setUserId(data.user.id);
       setUserEmail(data.user.email ?? '');
-      fetchCredits(data.user.id);
+      fetchCredits();
     });
     fetch('/data/regions.json').then(r => r.json()).then(setRegions).catch(() => {});
   }, [router]);
 
-  const fetchCredits = async (_uid: string) => {
+  const fetchCredits = async () => {
     const sb = createClient();
     const { data, error } = await sb.rpc('get_balance');
     if (error) { console.error('[konum] get_balance:', error.message); return; }
     setBalance(data ?? 0);
   };
 
-  // ── Cascade dropdown hesaplamaları ────────────────────────────────────────
+  // ── Cascade dropdown ──────────────────────────────────────────────────────
 
   const selectedRegion = useMemo(() => regions.find(r => r.il === il), [regions, il]);
   const ilceler        = selectedRegion?.ilceler ?? [];
   const selectedIlce   = useMemo(() => ilceler.find(i => i.ilce === ilce), [ilceler, ilce]);
 
-  // Harita merkezi: ilçe seçildiyse ilçe koordinatı, il seçildiyse il koordinatı, yoksa Türkiye merkezi
   const mapCenter: [number, number] = useMemo(() => {
     if (selectedIlce) return [selectedIlce.lat, selectedIlce.lng];
     if (selectedRegion) return [selectedRegion.lat, selectedRegion.lng];
@@ -95,32 +87,47 @@ export default function KonumRaporlamaPage() {
 
   const mapZoom = selectedIlce ? 13 : selectedRegion ? 10 : 6;
 
-  // ── Rapor oluştur ──────────────────────────────────────────────────────────
+  // ── Kategori seçimi ───────────────────────────────────────────────────────
 
-  // Hangi koşul eksik → kullanıcıya göster
-  const disabledReason = !il || !ilce
-    ? 'İl ve ilçe seçin'
-    : !pin
+  const toggleCat = (id: string) => {
+    setSelectedCats(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  // ── Sorgu tetikleme ───────────────────────────────────────────────────────
+
+  const radiusNum = Number(radiusKm.replace(',', '.'));
+  const radiusValid = Number.isFinite(radiusNum) && radiusNum >= 0.1 && radiusNum <= 10;
+
+  const disabledReason = !pin
     ? 'Haritada bir konum seçin (tıklayın)'
+    : !radiusValid
+    ? 'Yarıçap 0.1 ile 10 km arasında olmalıdır'
+    : selectedCats.length === 0
+    ? 'Çevre analizi için en az bir kategori seçmelisiniz.'
     : balance !== null && balance <= 0
     ? 'Krediniz yetersiz'
     : null;
 
-  const canGenerate = !!pin && !!il && !!ilce && !!userId && !loading && !disabledReason;
+  const canQuery = !!pin && radiusValid && selectedCats.length > 0 && !!userId && !loading && balance !== null && balance > 0;
 
-  const handleGenerate = async () => {
-    if (!canGenerate) return;
-    setLoading(true); setError(''); setReport(null);
+  const handleQuery = async () => {
+    if (!canQuery || loading) return;   // aynı anda ikinci istek gönderme
+    setLoading(true); setError(''); setResult(null);
     try {
       const res = await fetch('/api/location-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat: pin![0], lng: pin![1], il, ilce, mahalle, ada, parsel }),
+        body: JSON.stringify({
+          lat: pin![0],
+          lon: pin![1],
+          radiusKm: radiusNum,
+          categoryIds: selectedCats,
+          il, ilce, mahalle, ada, parsel,
+        }),
       });
       const json = await res.json();
-      if (!res.ok) { setError(json.error ?? 'Hata oluştu'); return; }
-      setReport(json);
-      // Sunucu güncel bakiyeyi döndürürse onu kullan, yoksa tahmini düş
+      if (!res.ok) { setError(json.error ?? 'Çevre analizi şu anda tamamlanamadı. Lütfen daha sonra tekrar deneyin.'); return; }
+      setResult(json as LocationAnalysisResponse);
       if (typeof json.balance === 'number') setBalance(json.balance);
       else if (balance !== null) setBalance(balance - 1);
     } catch {
@@ -130,31 +137,25 @@ export default function KonumRaporlamaPage() {
     }
   };
 
-  // ── Kopyala ───────────────────────────────────────────────────────────────
+  // ── Export ────────────────────────────────────────────────────────────────
 
-  const reportText = report ? buildReportText(report) : '';
+  const reportText = result ? buildReportText(result, { il, ilce, mahalle, ada, parsel }) : '';
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(reportText);
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
 
-  const handlePrint = () => {
-    const w = window.open('', '_blank');
-    if (!w) return;
-    w.document.write(`<pre style="font-family:Calibri;font-size:11pt;white-space:pre-wrap">${reportText.replace(/</g,'&lt;')}</pre>`);
-    w.document.close(); w.print();
-  };
-
   const handleExcel = async () => {
-    if (!report) return;
+    if (!result) return;
     const XLSX = await import('xlsx');
-    const ws   = XLSX.utils.json_to_sheet(
-      report.pois.map(p => ({ 'Ad': p.name, 'Tip': TYPE_LABEL[p.type] ?? p.type, 'Mesafe (m)': p.distance }))
+    const rows = result.categories.flatMap(c =>
+      c.items.map(it => ({ 'Kategori': c.categoryLabel, 'Ad': it.name, 'Mesafe': it.distanceText, 'Mesafe (m)': it.distanceM }))
     );
+    const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ 'Kategori': '', 'Ad': '', 'Mesafe': '', 'Mesafe (m)': '' }]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Çevre Analizi');
-    XLSX.writeFile(wb, `konum-raporu-${il}-${ilce}.xlsx`);
+    XLSX.writeFile(wb, `konum-raporu-${il || 'konum'}-${ilce || ''}.xlsx`);
   };
 
   // ── Kredi badge ───────────────────────────────────────────────────────────
@@ -194,14 +195,14 @@ export default function KonumRaporlamaPage() {
         </div>
       </header>
 
-      <main className="flex-1 grid lg:grid-cols-[380px_1fr] gap-0">
+      <main className="flex-1 grid lg:grid-cols-[400px_1fr] gap-0">
 
         {/* ── Sol panel — Form ──────────────────────────────────────── */}
         <div className="border-r border-subtle px-6 py-6 space-y-5 overflow-y-auto">
 
           <div>
-            <h2 className="text-sm font-semibold text-on-surface mb-1">Konum Bilgileri</h2>
-            <p className="text-xs text-text-muted">İl ve ilçeyi seçin, haritada pin koyun.</p>
+            <h2 className="text-sm font-semibold text-on-surface mb-1">Konum & Analiz</h2>
+            <p className="text-xs text-text-muted">İl/ilçe seçin, haritada pin koyun, yarıçap ve kategori belirleyin.</p>
           </div>
 
           {/* İl */}
@@ -246,21 +247,13 @@ export default function KonumRaporlamaPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-mono text-text-muted mb-1.5 tracking-wider">ADA <span className="normal-case font-sans text-text-muted/70">(opt.)</span></label>
-              <input
-                value={ada}
-                onChange={e => setAda(e.target.value)}
-                placeholder="—"
-                className="w-full bg-surface-container border border-subtle rounded-lg px-3 py-2.5 text-sm text-on-surface placeholder:text-text-muted/50 focus:outline-none focus:border-primary/50"
-              />
+              <input value={ada} onChange={e => setAda(e.target.value)} placeholder="—"
+                className="w-full bg-surface-container border border-subtle rounded-lg px-3 py-2.5 text-sm text-on-surface placeholder:text-text-muted/50 focus:outline-none focus:border-primary/50" />
             </div>
             <div>
               <label className="block text-xs font-mono text-text-muted mb-1.5 tracking-wider">PARSEL <span className="normal-case font-sans text-text-muted/70">(opt.)</span></label>
-              <input
-                value={parsel}
-                onChange={e => setParsel(e.target.value)}
-                placeholder="—"
-                className="w-full bg-surface-container border border-subtle rounded-lg px-3 py-2.5 text-sm text-on-surface placeholder:text-text-muted/50 focus:outline-none focus:border-primary/50"
-              />
+              <input value={parsel} onChange={e => setParsel(e.target.value)} placeholder="—"
+                className="w-full bg-surface-container border border-subtle rounded-lg px-3 py-2.5 text-sm text-on-surface placeholder:text-text-muted/50 focus:outline-none focus:border-primary/50" />
             </div>
           </div>
 
@@ -276,17 +269,57 @@ export default function KonumRaporlamaPage() {
             </div>
           )}
 
+          {/* Yarıçap */}
+          <div>
+            <label className="block text-xs font-mono text-text-muted mb-1.5 tracking-wider">ANALİZ YARIÇAPI (km)</label>
+            <input
+              type="number" step="0.1" min="0.1" max="10"
+              value={radiusKm}
+              onChange={e => setRadiusKm(e.target.value)}
+              className={`w-full bg-surface-container border rounded-lg px-3 py-2.5 text-sm text-on-surface focus:outline-none ${
+                radiusValid ? 'border-subtle focus:border-primary/50' : 'border-error/50'
+              }`}
+            />
+            {!radiusValid && (
+              <p className="text-[11px] text-error mt-1">Yarıçap 0.1 ile 10 km arasında olmalıdır.</p>
+            )}
+          </div>
+
+          {/* Kategoriler */}
+          <div>
+            <label className="block text-xs font-mono text-text-muted mb-2 tracking-wider">
+              POI KATEGORİLERİ {selectedCats.length > 0 && <span className="text-secondary">({selectedCats.length})</span>}
+            </label>
+            <div className="space-y-1.5">
+              {poiCategories.map(cat => (
+                <label key={cat.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-surface-container border border-subtle cursor-pointer hover:border-bright transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={selectedCats.includes(cat.id)}
+                    onChange={() => toggleCat(cat.id)}
+                    className="accent-primary w-4 h-4"
+                  />
+                  <span className="text-sm text-on-surface">{cat.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
           {/* Hata */}
           {error && (
-            <div className="bg-error/10 border border-error/20 rounded-lg px-3 py-2.5 text-xs text-error">
-              {error}
+            <div className="bg-error/10 border border-error/20 rounded-lg px-3 py-2.5 text-xs text-error space-y-2">
+              <p>{error}</p>
+              <button onClick={handleQuery} disabled={!canQuery}
+                className="font-mono text-[11px] tracking-wider px-3 py-1.5 rounded-lg border border-error/40 text-error hover:bg-error/10 transition-colors disabled:opacity-40">
+                ↻ Tekrar Sorgula
+              </button>
             </div>
           )}
 
-          {/* Raporu Oluştur */}
+          {/* Sorgula */}
           <button
-            onClick={handleGenerate}
-            disabled={!canGenerate}
+            onClick={handleQuery}
+            disabled={!canQuery}
             className="w-full py-3 rounded-lg text-sm font-semibold transition-all
               bg-brand text-on-primary shadow-glow-primary
               hover:opacity-90 active:scale-[0.98]
@@ -298,15 +331,13 @@ export default function KonumRaporlamaPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                 </svg>
-                Analiz ediliyor…
+                Çevre analizi hazırlanıyor…
               </span>
-            ) : 'Raporu Oluştur'}
+            ) : 'Sorgula'}
           </button>
 
-          {disabledReason && (
-            <p className="text-xs text-center text-amber-400/80">
-              ⚠ {disabledReason}
-            </p>
+          {disabledReason && !loading && (
+            <p className="text-xs text-center text-amber-400/80">⚠ {disabledReason}</p>
           )}
 
           <p className="text-[10px] text-text-muted/60 text-center">
@@ -314,18 +345,13 @@ export default function KonumRaporlamaPage() {
           </p>
         </div>
 
-        {/* ── Sağ panel — Harita + Rapor ────────────────────────────── */}
+        {/* ── Sağ panel — Harita (pin seçimi) + Sonuç ───────────────── */}
         <div className="flex flex-col">
 
-          {/* Harita */}
-          <div className={`relative ${report ? 'h-[40vh]' : 'flex-1 min-h-[400px]'} transition-all duration-300`}>
+          {/* Harita — sadece pin seçimi için */}
+          <div className={`relative ${result ? 'h-[35vh]' : 'flex-1 min-h-[400px]'} transition-all duration-300`}>
             {(mapReady || il) ? (
-              <KonumMap
-                pin={pin}
-                onPin={setPin}
-                center={mapCenter}
-                zoom={mapZoom}
-              />
+              <KonumMap pin={pin} onPin={setPin} center={mapCenter} zoom={mapZoom} />
             ) : (
               <div className="h-full flex items-center justify-center bg-surface-container text-text-muted text-sm">
                 İl seçince harita yüklenir.
@@ -333,69 +359,47 @@ export default function KonumRaporlamaPage() {
             )}
           </div>
 
-          {/* Rapor alanı */}
-          {report && (
+          {/* Sonuç — kategori bazlı liste */}
+          {result && (
             <div className="flex-1 overflow-y-auto border-t border-subtle p-6 space-y-5">
 
-              {/* Export butonları */}
-              <div className="flex gap-2 flex-wrap">
+              {/* Export */}
+              <div className="flex gap-2 flex-wrap items-center">
                 <GhostBtn onClick={handleCopy}>{copied ? '✓ Kopyalandı' : '⊕ Kopyala'}</GhostBtn>
-                <GhostBtn onClick={handlePrint}>↓ PDF (yazdır)</GhostBtn>
                 <GhostBtn onClick={handleExcel}>↓ Excel</GhostBtn>
+                <span className="text-xs text-text-muted ml-auto font-mono">
+                  Yarıçap: {result.radiusKm} km · {result.center.lat.toFixed(5)}, {result.center.lon.toFixed(5)}
+                </span>
               </div>
 
-              {/* Özet */}
-              <div className="bg-surface-container rounded-xl p-4 space-y-1.5">
-                <p className="text-xs font-mono text-text-muted tracking-wider mb-2">RAPOR ÖZETİ</p>
-                <Row k="Konum" v={[report.summary.il, report.summary.ilce, report.summary.mahalle].filter(Boolean).join(' / ')} />
-                {report.summary.ada    && <Row k="Ada"    v={report.summary.ada} />}
-                {report.summary.parsel && <Row k="Parsel" v={report.summary.parsel} />}
-                <Row k="Koordinat" v={`${report.summary.lat.toFixed(6)}, ${report.summary.lng.toFixed(6)}`} />
-                <Row k="Tarih" v={new Date(report.summary.generatedAt).toLocaleString('tr-TR')} />
-              </div>
-
-              {/* POI tablosu */}
-              <div>
-                <p className="text-xs font-mono text-text-muted tracking-wider mb-2">ÇEVRE ANALİZİ ({report.pois.length} nokta)</p>
-                {report.poiWarning && (
-                  <div className="mb-3 bg-amber-400/10 border border-amber-400/30 rounded-lg px-3 py-2.5 text-xs text-amber-400">
-                    ⚠ {report.poiWarning}
-                  </div>
-                )}
-                {report.pois.length === 0 ? (
-                  <p className="text-sm text-text-muted">Bu alanda kayıtlı POI bulunamadı.</p>
-                ) : (
-                  <div className="overflow-auto rounded-xl border border-subtle">
-                    <table className="w-full text-sm">
-                      <thead className="bg-surface-container text-text-muted text-xs font-mono tracking-wider">
-                        <tr>
-                          <th className="text-left px-4 py-2.5">Ad</th>
-                          <th className="text-left px-4 py-2.5">Tip</th>
-                          <th className="text-right px-4 py-2.5">Mesafe</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-subtle">
-                        {report.pois.map((p, i) => (
-                          <tr key={i} className="hover:bg-surface-raised/40 transition-colors">
-                            <td className="px-4 py-2.5 text-on-surface">{p.name}</td>
-                            <td className="px-4 py-2.5 text-text-muted">{TYPE_LABEL[p.type] ?? p.type}</td>
-                            <td className="px-4 py-2.5 text-right font-mono text-secondary">
-                              {p.distance < 1000 ? `${p.distance} m` : `${(p.distance / 1000).toFixed(1)} km`}
-                            </td>
-                          </tr>
+              {/* Kategori grupları */}
+              <div className="space-y-5">
+                {result.categories.map(cat => (
+                  <div key={cat.categoryId}>
+                    <p className="text-sm font-semibold text-on-surface mb-2">
+                      {cat.categoryLabel}
+                      {cat.items.length > 0 && <span className="text-text-muted font-normal"> ({cat.items.length})</span>}
+                    </p>
+                    {cat.items.length === 0 ? (
+                      <p className="text-xs text-text-muted pl-1">Bu yarıçapta {cat.categoryLabel.toLowerCase()} bulunamadı.</p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {cat.items.map((it, i) => (
+                          <li key={i} className="flex justify-between gap-3 text-sm px-3 py-1.5 rounded-lg hover:bg-surface-raised/40 transition-colors">
+                            <span className="text-on-surface">{it.name}</span>
+                            <span className="font-mono text-secondary shrink-0">{it.distanceText}</span>
+                          </li>
                         ))}
-                      </tbody>
-                    </table>
+                      </ul>
+                    )}
                   </div>
-                )}
+                ))}
               </div>
 
               {/* Disclaimer */}
               <div className="bg-surface-container rounded-xl p-4">
                 <p className="text-xs font-mono text-text-muted tracking-wider mb-2">YASAL UYARI</p>
-                <pre className="text-xs text-text-muted/80 whitespace-pre-wrap font-sans leading-relaxed">
-                  {report.disclaimer}
-                </pre>
+                <pre className="text-xs text-text-muted/80 whitespace-pre-wrap font-sans leading-relaxed">{DISCLAIMER}</pre>
               </div>
             </div>
           )}
@@ -406,15 +410,6 @@ export default function KonumRaporlamaPage() {
 }
 
 // ── Yardımcı bileşenler ───────────────────────────────────────────────────────
-
-function Row({ k, v }: { k: string; v: string }) {
-  return (
-    <div className="flex gap-3 text-sm">
-      <span className="text-text-muted min-w-[80px]">{k}</span>
-      <span className="text-on-surface font-medium">{v}</span>
-    </div>
-  );
-}
 
 function GhostBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
@@ -428,30 +423,33 @@ function GhostBtn({ onClick, children }: { onClick: () => void; children: React.
   );
 }
 
-// ── Rapor text builder ────────────────────────────────────────────────────────
+// ── Rapor metni ────────────────────────────────────────────────────────────────
 
-function buildReportText(r: Report): string {
-  const s = r.summary;
-  const loc = [s.il, s.ilce, s.mahalle].filter(Boolean).join(' / ');
+function buildReportText(
+  r: LocationAnalysisResponse,
+  loc: { il: string; ilce: string; mahalle: string; ada: string; parsel: string },
+): string {
+  const konum = [loc.il, loc.ilce, loc.mahalle].filter(Boolean).join(' / ');
   const lines = [
-    '=== KONUM RAPORU ===',
+    '=== ÇEVRE ANALİZİ RAPORU ===',
     '',
-    `Konum      : ${loc}`,
-    s.ada    ? `Ada        : ${s.ada}`    : '',
-    s.parsel ? `Parsel     : ${s.parsel}` : '',
-    `Koordinat  : ${s.lat.toFixed(6)}, ${s.lng.toFixed(6)}`,
-    `Oluşturulma: ${new Date(s.generatedAt).toLocaleString('tr-TR')}`,
+    konum     ? `Konum     : ${konum}` : '',
+    loc.ada    ? `Ada       : ${loc.ada}`    : '',
+    loc.parsel ? `Parsel    : ${loc.parsel}` : '',
+    `Koordinat : ${r.center.lat.toFixed(6)}, ${r.center.lon.toFixed(6)}`,
+    `Yarıçap   : ${r.radiusKm} km`,
+    `Tarih     : ${new Date().toLocaleString('tr-TR')}`,
     '',
-    '--- ÇEVRE ANALİZİ ---',
-    '',
-    ...r.pois.map(p => {
-      const dist = p.distance < 1000 ? `${p.distance} m` : `${(p.distance / 1000).toFixed(1)} km`;
-      return `${(TYPE_LABEL[p.type] ?? p.type).padEnd(20)} ${p.name.padEnd(40)} ${dist}`;
-    }),
-    '',
-    '--- YASAL UYARI ---',
-    '',
-    r.disclaimer,
   ];
+  for (const cat of r.categories) {
+    lines.push(`--- ${cat.categoryLabel} ---`);
+    if (cat.items.length === 0) {
+      lines.push(`Bu yarıçapta ${cat.categoryLabel.toLowerCase()} bulunamadı.`);
+    } else {
+      for (const it of cat.items) lines.push(`- ${it.name} — ${it.distanceText}`);
+    }
+    lines.push('');
+  }
+  lines.push('--- YASAL UYARI ---', '', DISCLAIMER);
   return lines.filter(l => l !== undefined).join('\n');
 }
