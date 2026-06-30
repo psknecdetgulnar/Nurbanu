@@ -8,7 +8,7 @@ import { extractTextFromPDF } from '@/lib/takbis/extractText';
 import { splitDocuments } from '@/lib/takbis/splitDocuments';
 import { parseDocument } from '@/lib/takbis/parseDocument';
 import { normalizeRecord } from '@/lib/takbis/normalize';
-import { renderTakyidat, countTakyidat } from '@/lib/takbis/render/takyidatRenderer';
+import { countTakyidat } from '@/lib/takbis/render/takyidatRenderer';
 import { renderTamRapor } from '@/lib/takbis/render/tamRaporRenderer';
 import type { TakbisRecord } from '@/lib/takbis/types';
 import type { BelgeModel } from '@/lib/takbis/render/types';
@@ -24,7 +24,7 @@ interface FileResult {
   rawText?: string;
 }
 
-type OutputTab = 'takyidat' | 'tamrapor' | 'yorum' | 'rawtext';
+type OutputTab = 'tamrapor';
 
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function TakbisOkuyucuPage() {
@@ -33,13 +33,7 @@ export default function TakbisOkuyucuPage() {
   const [balance, setBalance] = useState<number | null>(null);
   const [fileResults, setFileResults] = useState<FileResult[]>([]);
   const [dragging, setDragging] = useState(false);
-  const [activeTab, setActiveTab] = useState<OutputTab>('takyidat');
   const [copiedTab, setCopiedTab] = useState<OutputTab | null>(null);
-
-  // AI yorum state
-  const [yorumText, setYorumText] = useState('');
-  const [yorumLoading, setYorumLoading] = useState(false);
-  const [yorumError, setYorumError] = useState('');
 
   useEffect(() => {
     getUser().then(async ({ data }) => {
@@ -122,7 +116,6 @@ export default function TakbisOkuyucuPage() {
   const allModels  = fileResults.flatMap((r) => r.models);
   const allRecords = fileResults.flatMap((r) => r.records);
 
-  const takyidatAll = allModels.map((m) => renderTakyidat(m)).join('\n\n---\n\n');
   const tamRaporAll = allModels.map((m) => renderTamRapor(m)).join('\n\n---\n\n');
 
   const counts = allModels.length > 0
@@ -139,38 +132,6 @@ export default function TakbisOkuyucuPage() {
     setTimeout(() => setCopiedTab(null), 2000);
   };
 
-  // ── AI yorum üret (DeepSeek, stream) ───────────────────────────────────
-  const generateYorum = async () => {
-    const rawText = fileResults
-      .map((r) => r.rawText ?? '')
-      .filter(Boolean)
-      .join('\n\n========== YENİ BELGE ==========\n\n');
-    if (yorumLoading || !rawText) return;
-    setYorumLoading(true); setYorumError(''); setYorumText('');
-    try {
-      const res = await fetch('/api/takbis-yorum', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rawText }),
-      });
-      if (!res.ok || !res.body) {
-        const j = await res.json().catch(() => ({}));
-        setYorumError(j.error ?? 'Yorum üretilemedi.');
-        return;
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        setYorumText((prev) => prev + decoder.decode(value, { stream: true }));
-      }
-    } catch {
-      setYorumError('Bağlantı hatası. Lütfen tekrar deneyin.');
-    } finally {
-      setYorumLoading(false);
-    }
-  };
 
   const downloadTxt = (text: string, filename: string) => {
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
@@ -304,101 +265,27 @@ export default function TakbisOkuyucuPage() {
               </div>
             )}
 
-            {/* Tab bar */}
-            <div className="flex gap-1 mb-4 p-1 rounded-lg bg-surface-container w-fit">
-              {OUTPUT_TABS.map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveTab(key as OutputTab)}
-                  className={`px-4 py-1.5 rounded-md text-xs font-mono font-medium tracking-wider transition-colors ${
-                    activeTab === key
-                      ? 'bg-surface-raised text-on-surface shadow-sm'
-                      : 'text-text-muted hover:text-on-surface-variant'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
             {/* Export butonları */}
-            {(activeTab === 'takyidat' || activeTab === 'tamrapor') && (
-              <div className="flex gap-2 mb-4 flex-wrap">
-                <GhostButton
-                  onClick={() => copyText(activeTab === 'takyidat' ? takyidatAll : tamRaporAll, activeTab)}
-                >
-                  {copiedTab === activeTab ? '✓ Kopyalandı' : '⊕ Kopyala'}
-                </GhostButton>
-                <GhostButton onClick={() => downloadTxt(activeTab === 'takyidat' ? takyidatAll : tamRaporAll, `takbis-${activeTab}.txt`)}>
-                  ↓ TXT
-                </GhostButton>
-                <GhostButton onClick={() => downloadWord(activeTab === 'takyidat' ? takyidatAll : tamRaporAll, `takbis-${activeTab}.doc`)}>
-                  ↓ Word
-                </GhostButton>
-                <GhostButton onClick={downloadExcel}>
-                  ↓ Excel
-                </GhostButton>
-              </div>
-            )}
+            <div className="flex gap-2 mb-4 flex-wrap">
+              <GhostButton onClick={() => copyText(tamRaporAll, 'tamrapor')}>
+                {copiedTab === 'tamrapor' ? '✓ Kopyalandı' : '⊕ Kopyala'}
+              </GhostButton>
+              <GhostButton onClick={() => downloadTxt(tamRaporAll, 'takbis-okuyucu.txt')}>
+                ↓ TXT
+              </GhostButton>
+              <GhostButton onClick={() => downloadWord(tamRaporAll, 'takbis-okuyucu.doc')}>
+                ↓ Word
+              </GhostButton>
+              <GhostButton onClick={downloadExcel}>
+                ↓ Excel
+              </GhostButton>
+            </div>
 
             {/* İçerik */}
             <div className="bg-surface-container-high rounded-xl overflow-auto max-h-[60vh] border border-subtle">
-              {activeTab === 'takyidat' && (
-                <pre className="p-6 text-sm text-on-surface font-inter leading-relaxed whitespace-pre-wrap">
-                  {takyidatAll || '(çıktı yok)'}
-                </pre>
-              )}
-              {activeTab === 'tamrapor' && (
-                <pre className="p-6 text-sm text-on-surface font-inter leading-relaxed whitespace-pre-wrap">
-                  {tamRaporAll || '(çıktı yok)'}
-                </pre>
-              )}
-              {activeTab === 'yorum' && (
-                <div className="p-6">
-                  {!yorumText && !yorumLoading && !yorumError && (
-                    <div className="text-center py-8">
-                      <p className="text-sm text-text-muted mb-4">
-                        Ham TAKBİS metnini yapay zekâ ile temiz, rapora hazır takyidat dökümüne dönüştür.
-                      </p>
-                      <button
-                        onClick={generateYorum}
-                        className="px-5 py-2.5 rounded-lg text-sm font-semibold bg-brand text-on-primary
-                                   hover:opacity-90 transition-opacity shadow-glow-primary"
-                      >
-                        ✦ AI Takyidat Oluştur
-                      </button>
-                    </div>
-                  )}
-                  {yorumError && (
-                    <div className="bg-error-container/30 border border-error/20 text-error px-4 py-3 rounded-lg text-sm">
-                      {yorumError}
-                    </div>
-                  )}
-                  {(yorumText || yorumLoading) && (
-                    <>
-                      <pre className="text-sm text-on-surface font-inter leading-relaxed whitespace-pre-wrap">
-                        {yorumText}{yorumLoading && <span className="animate-pulse">▍</span>}
-                      </pre>
-                      {!yorumLoading && yorumText && (
-                        <div className="flex gap-2 mt-4">
-                          <GhostButton onClick={() => copyText(yorumText, 'yorum')}>
-                            {copiedTab === 'yorum' ? '✓ Kopyalandı' : '⊕ Kopyala'}
-                          </GhostButton>
-                          <GhostButton onClick={() => downloadWord(yorumText, 'takbis-yorum.doc')}>
-                            ↓ Word
-                          </GhostButton>
-                          <GhostButton onClick={generateYorum}>↻ Yeniden</GhostButton>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-              {activeTab === 'rawtext' && (
-                <pre className="p-6 text-xs text-tertiary font-inter whitespace-pre-wrap">
-                  {fileResults.map((r) => `=== ${r.name} ===\n${r.rawText ?? ''}`).join('\n\n')}
-                </pre>
-              )}
+              <pre className="p-6 text-sm text-on-surface font-inter leading-relaxed whitespace-pre-wrap">
+                {tamRaporAll || '(çıktı yok)'}
+              </pre>
             </div>
 
             <div className="mt-3 flex justify-end">
@@ -461,9 +348,3 @@ function GhostButton({ onClick, children }: { onClick: () => void; children: Rea
 
 // ── Statik ─────────────────────────────────────────────────────────────────
 
-const OUTPUT_TABS = [
-  { key: 'takyidat', label: 'TAKYİDAT' },
-  { key: 'tamrapor', label: 'TAM RAPOR' },
-  { key: 'yorum',    label: 'AI TAKYİDAT' },
-  { key: 'rawtext',  label: 'HAM METİN' },
-];
