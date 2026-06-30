@@ -3,6 +3,7 @@
 import dynamic        from 'next/dynamic';
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter }  from 'next/navigation';
+import Link           from 'next/link';
 import { getUser }    from '@/lib/auth';
 import { createClient } from '@/lib/supabase/client';
 
@@ -40,7 +41,7 @@ export default function KonumRaporlamaPage() {
   // Kullanıcı & kredi
   const [userId,    setUserId]    = useState('');
   const [userEmail, setUserEmail] = useState('');
-  const [credits,   setCredits]   = useState<{ remaining: number; planType: string; isExpired: boolean } | null>(null);
+  const [balance,   setBalance]   = useState<number | null>(null);
 
   // Bölge verisi
   const [regions, setRegions] = useState<Region[]>([]);
@@ -72,30 +73,11 @@ export default function KonumRaporlamaPage() {
     fetch('/data/regions.json').then(r => r.json()).then(setRegions).catch(() => {});
   }, [router]);
 
-  const fetchCredits = async (uid: string) => {
+  const fetchCredits = async (_uid: string) => {
     const sb = createClient();
-    const { data, error } = await sb.from('user_credits')
-      .select('remaining, plan_type, reset_date')
-      .eq('user_id', uid).single();
-
-    if (!data || error) {
-      // Tablo kurulmamış veya bu kullanıcının satırı yok → otomatik oluştur
-      const { error: insertError } = await sb.from('user_credits').upsert({
-        user_id: uid,
-        remaining: 15,
-        reset_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        plan_type: 'trial',
-      }, { onConflict: 'user_id' });
-
-      if (!insertError) {
-        setCredits({ remaining: 15, planType: 'trial', isExpired: false });
-      }
-      // Tablo hiç yoksa (SQL çalıştırılmamış) upsert de hata verir → credits null kalır
-      return;
-    }
-
-    const expired = data.plan_type === 'trial' && new Date(data.reset_date) < new Date();
-    setCredits({ remaining: data.remaining, planType: data.plan_type, isExpired: expired });
+    const { data, error } = await sb.rpc('get_balance');
+    if (error) { console.error('[konum] get_balance:', error.message); return; }
+    setBalance(data ?? 0);
   };
 
   // ── Cascade dropdown hesaplamaları ────────────────────────────────────────
@@ -120,10 +102,8 @@ export default function KonumRaporlamaPage() {
     ? 'İl ve ilçe seçin'
     : !pin
     ? 'Haritada bir konum seçin (tıklayın)'
-    : credits?.isExpired
-    ? 'Deneme süresi doldu'
-    : credits !== null && credits.remaining <= 0
-    ? 'Bu ayki hakkınız doldu'
+    : balance !== null && balance <= 0
+    ? 'Krediniz yetersiz'
     : null;
 
   const canGenerate = !!pin && !!il && !!ilce && !!userId && !loading && !disabledReason;
@@ -140,7 +120,9 @@ export default function KonumRaporlamaPage() {
       const json = await res.json();
       if (!res.ok) { setError(json.error ?? 'Hata oluştu'); return; }
       setReport(json);
-      if (credits) setCredits({ ...credits, remaining: credits.remaining - 1 });
+      // Sunucu güncel bakiyeyi döndürürse onu kullan, yoksa tahmini düş
+      if (typeof json.balance === 'number') setBalance(json.balance);
+      else if (balance !== null) setBalance(balance - 1);
     } catch {
       setError('Bağlantı hatası. Lütfen tekrar deneyin.');
     } finally {
@@ -178,20 +160,15 @@ export default function KonumRaporlamaPage() {
   // ── Kredi badge ───────────────────────────────────────────────────────────
 
   const creditBadge = () => {
-    if (!credits) return null;
-    if (credits.isExpired) return (
-      <span className="text-xs font-mono text-error bg-error/10 border border-error/20 px-2.5 py-1 rounded-full">
-        Deneme süresi doldu
-      </span>
-    );
-    if (credits.remaining === 0) return (
+    if (balance === null) return null;
+    if (balance <= 0) return (
       <span className="text-xs font-mono text-orange-400 bg-orange-400/10 border border-orange-400/20 px-2.5 py-1 rounded-full">
-        Bu ayki hakkınız doldu
+        Krediniz bitti
       </span>
     );
     return (
       <span className="text-xs font-mono text-secondary bg-secondary/10 border border-secondary/20 px-2.5 py-1 rounded-full">
-        Kalan kredi: {credits.remaining}
+        Kalan kredi: {balance}
       </span>
     );
   };
@@ -209,6 +186,9 @@ export default function KonumRaporlamaPage() {
           </div>
           <div className="flex items-center gap-4">
             {creditBadge()}
+            <Link href="/hesabim" className="text-xs font-mono text-text-muted hover:text-on-surface transition-colors tracking-wider">
+              HESABIM
+            </Link>
             <span className="text-xs font-mono text-text-muted hidden sm:block">{userEmail}</span>
           </div>
         </div>

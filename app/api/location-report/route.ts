@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient }               from '@/lib/supabase/server';
-import { consumeCredit, getUserCreditStatus, refundCredit, checkAndResetCredits } from '@/lib/credits';
+import { consume, refund } from '@/lib/credits';
 
 // ── Tipler ──────────────────────────────────────────────────────────────────
 
@@ -219,18 +219,6 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 });
 
-    // Kredi reset kontrolü (aylık premium sıfırlama)
-    await checkAndResetCredits(user.id);
-
-    // Kredi kontrol
-    const creditStatus = await getUserCreditStatus(user.id);
-    if (!creditStatus.canUse) {
-      const msg = creditStatus.isExpired
-        ? 'Deneme süreniz doldu. Premium\'a geçerek rapor oluşturabilirsiniz.'
-        : 'Kalan krediniz yok. Bu ayki hakkınız doldu.';
-      return NextResponse.json({ error: msg }, { status: 403 });
-    }
-
     // Input parse
     const body: ReportInput = await req.json();
     const { lat, lng, il, ilce, mahalle, ada, parsel } = body;
@@ -239,9 +227,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Eksik parametre' }, { status: 400 });
     }
 
-    // Kredi düş
-    const consumed = await consumeCredit(user.id);
-    if (!consumed) return NextResponse.json({ error: 'Kredi düşülemedi' }, { status: 403 });
+    // Kredi düş (yeterli değilse FEFO fonksiyonu hiç düşmeden false döner)
+    const result = await consume('location_report');
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: 'Krediniz yetersiz. Hesabınıza kredi ekleyin.', balance: result.balance },
+        { status: 403 }
+      );
+    }
 
     // POI çek — başarısız olursa kredi iade et (rollback)
     let pois: POI[] = [];
@@ -250,7 +243,7 @@ export async function POST(req: NextRequest) {
       pois = await fetchPOIs(lat, lng);
     } catch (fetchErr) {
       // Overpass başarısız → krediyi iade et
-      await refundCredit(user.id);
+      await refund('location_report');
       const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
       console.error('[location-report] fetchPOIs failed, credit refunded:', msg);
       return NextResponse.json(
@@ -271,6 +264,7 @@ export async function POST(req: NextRequest) {
       pois,
       poiWarning,
       disclaimer: DISCLAIMER,
+      balance: result.balance,
     });
   } catch (err) {
     console.error('[location-report]', err);

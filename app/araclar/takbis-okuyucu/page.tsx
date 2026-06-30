@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUser, signOut } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/client';
 import { extractTextFromPDF } from '@/lib/takbis/extractText';
 import { splitDocuments } from '@/lib/takbis/splitDocuments';
 import { parseDocument } from '@/lib/takbis/parseDocument';
@@ -23,21 +24,30 @@ interface FileResult {
   rawText?: string;
 }
 
-type OutputTab = 'takyidat' | 'tamrapor' | 'rawtext';
+type OutputTab = 'takyidat' | 'tamrapor' | 'yorum' | 'rawtext';
 
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function TakbisOkuyucuPage() {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState('');
+  const [balance, setBalance] = useState<number | null>(null);
   const [fileResults, setFileResults] = useState<FileResult[]>([]);
   const [dragging, setDragging] = useState(false);
   const [activeTab, setActiveTab] = useState<OutputTab>('takyidat');
   const [copiedTab, setCopiedTab] = useState<OutputTab | null>(null);
 
+  // AI yorum state
+  const [yorumText, setYorumText] = useState('');
+  const [yorumLoading, setYorumLoading] = useState(false);
+  const [yorumError, setYorumError] = useState('');
+
   useEffect(() => {
-    getUser().then(({ data }) => {
-      if (!data.user) router.push('/login');
-      else setUserEmail(data.user.email ?? '');
+    getUser().then(async ({ data }) => {
+      if (!data.user) { router.push('/login'); return; }
+      setUserEmail(data.user.email ?? '');
+      const sb = createClient();
+      const { data: bal } = await sb.rpc('get_balance');
+      setBalance(bal ?? 0);
     });
   }, [router]);
 
@@ -51,7 +61,24 @@ export default function TakbisOkuyucuPage() {
       ...pdfs.map((f) => ({ name: f.name, status: 'processing' as const, records: [], models: [] })),
     ]);
 
+    const sb = createClient();
+
     for (const file of pdfs) {
+      // Her belge 1 kredi — parse'tan önce düş (FEFO, atomik)
+      const { data: ok, error: cErr } = await sb.rpc('consume_credits', {
+        p_cost: 1, p_action: 'takbis_read',
+      });
+      if (cErr || ok !== true) {
+        setFileResults((prev) =>
+          prev.map((r) =>
+            r.name === file.name
+              ? { ...r, status: 'error', records: [], models: [], error: 'Krediniz yetersiz. Hesabınıza kredi ekleyin.' }
+              : r
+          )
+        );
+        continue;
+      }
+
       try {
         const docText = await extractTextFromPDF(file);
         const segments = splitDocuments(docText.fullText);
@@ -70,7 +97,13 @@ export default function TakbisOkuyucuPage() {
               : r
           )
         );
+        const { data: bal } = await sb.rpc('get_balance');
+        setBalance(bal ?? 0);
       } catch (err) {
+        // Parse başarısız → krediyi iade et
+        await sb.rpc('refund_credits', { p_amount: 1, p_action: 'takbis_read' });
+        const { data: bal } = await sb.rpc('get_balance');
+        setBalance(bal ?? 0);
         setFileResults((prev) =>
           prev.map((r) =>
             r.name === file.name
@@ -104,6 +137,39 @@ export default function TakbisOkuyucuPage() {
     await navigator.clipboard.writeText(text);
     setCopiedTab(tab);
     setTimeout(() => setCopiedTab(null), 2000);
+  };
+
+  // ── AI yorum üret (DeepSeek, stream) ───────────────────────────────────
+  const generateYorum = async () => {
+    const rawText = fileResults
+      .map((r) => r.rawText ?? '')
+      .filter(Boolean)
+      .join('\n\n========== YENİ BELGE ==========\n\n');
+    if (yorumLoading || !rawText) return;
+    setYorumLoading(true); setYorumError(''); setYorumText('');
+    try {
+      const res = await fetch('/api/takbis-yorum', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawText }),
+      });
+      if (!res.ok || !res.body) {
+        const j = await res.json().catch(() => ({}));
+        setYorumError(j.error ?? 'Yorum üretilemedi.');
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        setYorumText((prev) => prev + decoder.decode(value, { stream: true }));
+      }
+    } catch {
+      setYorumError('Bağlantı hatası. Lütfen tekrar deneyin.');
+    } finally {
+      setYorumLoading(false);
+    }
   };
 
   const downloadTxt = (text: string, filename: string) => {
@@ -146,6 +212,18 @@ export default function TakbisOkuyucuPage() {
             <span className="text-xs font-mono text-on-surface-variant tracking-wider">TAKBIS OKUYUCU</span>
           </div>
           <div className="flex items-center gap-5">
+            {balance !== null && (
+              <span className={`text-xs font-mono px-2.5 py-1 rounded-full border ${
+                balance <= 0
+                  ? 'text-orange-400 bg-orange-400/10 border-orange-400/20'
+                  : 'text-secondary bg-secondary/10 border-secondary/20'
+              }`}>
+                {balance <= 0 ? 'Krediniz bitti' : `Kalan kredi: ${balance}`}
+              </span>
+            )}
+            <Link href="/hesabim" className="text-xs font-mono text-text-muted hover:text-on-surface transition-colors tracking-wider">
+              HESABIM
+            </Link>
             <span className="text-xs font-mono text-text-muted hidden sm:block">{userEmail}</span>
             <button
               onClick={handleLogout}
@@ -275,6 +353,47 @@ export default function TakbisOkuyucuPage() {
                   {tamRaporAll || '(çıktı yok)'}
                 </pre>
               )}
+              {activeTab === 'yorum' && (
+                <div className="p-6">
+                  {!yorumText && !yorumLoading && !yorumError && (
+                    <div className="text-center py-8">
+                      <p className="text-sm text-text-muted mb-4">
+                        Ham TAKBİS metnini yapay zekâ ile temiz, rapora hazır takyidat dökümüne dönüştür.
+                      </p>
+                      <button
+                        onClick={generateYorum}
+                        className="px-5 py-2.5 rounded-lg text-sm font-semibold bg-brand text-on-primary
+                                   hover:opacity-90 transition-opacity shadow-glow-primary"
+                      >
+                        ✦ AI Takyidat Oluştur
+                      </button>
+                    </div>
+                  )}
+                  {yorumError && (
+                    <div className="bg-error-container/30 border border-error/20 text-error px-4 py-3 rounded-lg text-sm">
+                      {yorumError}
+                    </div>
+                  )}
+                  {(yorumText || yorumLoading) && (
+                    <>
+                      <pre className="text-sm text-on-surface font-inter leading-relaxed whitespace-pre-wrap">
+                        {yorumText}{yorumLoading && <span className="animate-pulse">▍</span>}
+                      </pre>
+                      {!yorumLoading && yorumText && (
+                        <div className="flex gap-2 mt-4">
+                          <GhostButton onClick={() => copyText(yorumText, 'yorum')}>
+                            {copiedTab === 'yorum' ? '✓ Kopyalandı' : '⊕ Kopyala'}
+                          </GhostButton>
+                          <GhostButton onClick={() => downloadWord(yorumText, 'takbis-yorum.doc')}>
+                            ↓ Word
+                          </GhostButton>
+                          <GhostButton onClick={generateYorum}>↻ Yeniden</GhostButton>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
               {activeTab === 'rawtext' && (
                 <pre className="p-6 text-xs text-tertiary font-inter whitespace-pre-wrap">
                   {fileResults.map((r) => `=== ${r.name} ===\n${r.rawText ?? ''}`).join('\n\n')}
@@ -345,5 +464,6 @@ function GhostButton({ onClick, children }: { onClick: () => void; children: Rea
 const OUTPUT_TABS = [
   { key: 'takyidat', label: 'TAKYİDAT' },
   { key: 'tamrapor', label: 'TAM RAPOR' },
+  { key: 'yorum',    label: 'AI TAKYİDAT' },
   { key: 'rawtext',  label: 'HAM METİN' },
 ];

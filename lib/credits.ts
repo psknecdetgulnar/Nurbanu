@@ -1,119 +1,101 @@
+/**
+ * Kredi sistemi — lot tabanlı (bkz. supabase/schema.sql).
+ *
+ * Bakiye   = süresi geçmemiş lotların toplamı (get_balance RPC)
+ * Tüketim  = FEFO, atomik (consume_credits RPC)
+ * İade     = başarısız işlemde kısa ömürlü iade lotu (refund_credits RPC)
+ *
+ * Bu modül sunucu tarafında (route handler / server component) kullanılır;
+ * createClient() kullanıcı oturum bağlamında çalışır, böylece auth.uid() doğru.
+ */
 import { createClient } from '@/lib/supabase/server';
 
-// ── Tipler ──────────────────────────────────────────────────────────────────
+// ── İşlem maliyetleri ────────────────────────────────────────────────────────
+// Gelecekte eklenecek işlemler buraya farklı maliyetlerle eklenir.
+export const CREDIT_COSTS = {
+  takbis_read:     1,
+  location_report: 1,
+} as const;
 
-export interface CreditStatus {
-  canUse: boolean;
-  remaining: number;
-  planType: string;
-  isExpired: boolean;
-  resetDate: Date;
+export type CreditAction = keyof typeof CREDIT_COSTS;
+
+// ── Bakiye ───────────────────────────────────────────────────────────────────
+
+export async function getBalance(): Promise<number> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('get_balance');
+  if (error) {
+    console.error('[credits] get_balance:', error.message);
+    return 0;
+  }
+  return data ?? 0;
 }
 
-// ── Kullanıcı kredi durumu ───────────────────────────────────────────────────
+// ── Tüketim ──────────────────────────────────────────────────────────────────
+// Yeterli kredi yoksa { ok:false }, hiçbir şey düşmez.
 
-export async function getUserCreditStatus(userId: string): Promise<CreditStatus> {
+export interface ConsumeResult {
+  ok: boolean;
+  cost: number;
+  balance: number;       // işlem sonrası bakiye
+}
+
+export async function consume(action: CreditAction): Promise<ConsumeResult> {
+  const cost = CREDIT_COSTS[action];
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from('user_credits')
-    .select('remaining, plan_type, reset_date')
-    .eq('user_id', userId)
-    .single();
+  const { data, error } = await supabase.rpc('consume_credits', {
+    p_cost: cost,
+    p_action: action,
+  });
 
-  if (error || !data) {
-    return { canUse: false, remaining: 0, planType: 'trial', isExpired: true, resetDate: new Date() };
+  if (error) {
+    console.error('[credits] consume_credits:', error.message);
+    return { ok: false, cost, balance: await getBalance() };
   }
 
-  const resetDate = new Date(data.reset_date);
-  const now       = new Date();
+  const ok = data === true;
+  return { ok, cost, balance: await getBalance() };
+}
 
-  // Trial süresi dolmuş mu?
-  const isTrialExpired = data.plan_type === 'trial' && resetDate < now;
+// ── İade (işlem başarısız olursa) ────────────────────────────────────────────
 
-  const canUse = !isTrialExpired && data.remaining > 0;
+export async function refund(action: CreditAction): Promise<void> {
+  const cost = CREDIT_COSTS[action];
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('refund_credits', {
+    p_amount: cost,
+    p_action: action,
+  });
+  if (error) console.error('[credits] refund_credits:', error.message);
+}
+
+// ── Abonelik + bakiye özeti (hesabım sayfası / read-only kontrolü) ───────────
+
+export interface MembershipSummary {
+  balance: number;
+  isReadOnly: boolean;                 // balance === 0
+  plan: 'free' | 'premium';
+  subscriptionStatus: string | null;   // 'active' | 'past_due' | 'canceled' | null
+  periodEnd: string | null;
+}
+
+export async function getMembershipSummary(): Promise<MembershipSummary> {
+  const supabase = await createClient();
+  const balance = await getBalance();
+
+  const { data: sub } = await supabase
+    .from('subscriptions')
+    .select('status, current_period_end')
+    .maybeSingle();
+
+  const isActive = sub?.status === 'active';
 
   return {
-    canUse,
-    remaining: data.remaining,
-    planType:  data.plan_type,
-    isExpired: isTrialExpired,
-    resetDate,
+    balance,
+    isReadOnly: balance <= 0,
+    plan: isActive ? 'premium' : 'free',
+    subscriptionStatus: sub?.status ?? null,
+    periodEnd: sub?.current_period_end ?? null,
   };
-}
-
-// ── Kredi düş, log yaz ──────────────────────────────────────────────────────
-
-export async function consumeCredit(userId: string): Promise<boolean> {
-  const supabase = await createClient();
-
-  // Önce mevcut durumu kontrol et
-  const status = await getUserCreditStatus(userId);
-  if (!status.canUse) return false;
-
-  // Krediyi 1 düşür (remaining >= 1 garantisini sağla)
-  const { error: updateError } = await supabase
-    .from('user_credits')
-    .update({ remaining: status.remaining - 1 })
-    .eq('user_id', userId)
-    .gte('remaining', 1);  // race condition koruması
-
-  if (updateError) return false;
-
-  // Kullanım loguna yaz (KVKK: sadece sayaç, içerik yok)
-  await supabase
-    .from('credit_usage_log')
-    .insert({ user_id: userId, action: 'report_generated' });
-
-  return true;
-}
-
-// ── Başarısız üretimde krediyi iade et (rollback) ───────────────────────────
-
-export async function refundCredit(userId: string): Promise<void> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from('user_credits')
-    .select('remaining')
-    .eq('user_id', userId)
-    .single();
-  if (data) {
-    await supabase
-      .from('user_credits')
-      .update({ remaining: data.remaining + 1 })
-      .eq('user_id', userId);
-  }
-}
-
-// ── Aylık reset kontrolü ────────────────────────────────────────────────────
-
-export async function checkAndResetCredits(userId: string): Promise<void> {
-  const supabase = await createClient();
-
-  const { data } = await supabase
-    .from('user_credits')
-    .select('plan_type, reset_date')
-    .eq('user_id', userId)
-    .single();
-
-  if (!data || data.plan_type === 'trial') return;
-
-  const resetDate = new Date(data.reset_date);
-  const now       = new Date();
-
-  if (now >= resetDate) {
-    // Bir sonraki reset gününü hesapla (aynı gün, bir ay sonra)
-    const nextReset = new Date(resetDate);
-    nextReset.setMonth(nextReset.getMonth() + 1);
-
-    // Ay sonu edge case: hedef günü geç ay için son güne sıkıştır
-    const targetDay = resetDate.getDate();
-    const maxDay    = new Date(nextReset.getFullYear(), nextReset.getMonth() + 1, 0).getDate();
-    nextReset.setDate(Math.min(targetDay, maxDay));
-
-    await supabase
-      .from('user_credits')
-      .update({ remaining: 30, reset_date: nextReset.toISOString() })
-      .eq('user_id', userId);
-  }
 }
