@@ -245,7 +245,7 @@ function auditSnap(snap: FileSnap): string[] {
 // ── Snap kaydet/karşılaştır ───────────────────────────────────────────────
 function handleSnap(snap: FileSnap, snapMode: boolean): 'written' | 'match' | 'mismatch' | 'no-snap' {
   mkdirSync(SNAPSHOTS_DIR, { recursive: true });
-  const snapFile = path.join(SNAPSHOTS_DIR, snap.file.replace(/\.pdf$/i, '') + '.snap.json');
+  const snapFile = path.join(SNAPSHOTS_DIR, snap.file.replace(/\.(pdf|txt)$/i, '') + '.snap.json');
 
   if (snapMode) {
     writeFileSync(snapFile, JSON.stringify(snap, null, 2), 'utf-8');

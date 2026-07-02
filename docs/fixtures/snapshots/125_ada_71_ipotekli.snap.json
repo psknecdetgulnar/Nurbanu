@@ -1,0 +1,51 @@
+{
+  "file": "125_ada_71_ipotekli.txt",
+  "ipotekler": [
+    {
+      "alacakli": "TÜRKİYE CUMHURİYETİ ZİRAAT BANKASI A.Ş.",
+      "borc": 500000,
+      "dereceSira": "1/1",
+      "tesisTarihYevmiye": "10-12-2019 7085",
+      "tescilTarihYevmiye": ""
+    },
+    {
+      "alacakli": "TÜRKİYE CUMHURİYETİ ZİRAAT BANKASI A.Ş.",
+      "borc": 5000000,
+      "dereceSira": "2/0",
+      "tesisTarihYevmiye": "10-07-2024 6560",
+      "tescilTarihYevmiye": ""
+    },
+    {
+      "alacakli": "TÜRKİYE CUMHURİYETİ ZİRAAT BANKASI A.Ş.",
+      "borc": 10000000,
+      "dereceSira": "3/0",
+      "tesisTarihYevmiye": "06-04-2026 2998",
+      "tescilTarihYevmiye": ""
+    }
+  ],
+  "rehinler": [
+    {
+      "alacakli": "TÜRKİYE CUMHURİYETİ ZİRAAT BANKASI A.Ş.",
+      "bedel": "500000.00",
+      "derece": "1/1",
+      "tescilTarihi": "2019-12-10",
+      "yevmiye": "7085"
+    },
+    {
+      "alacakli": "TÜRKİYE CUMHURİYETİ ZİRAAT BANKASI A.Ş.",
+      "bedel": "5000000.00",
+      "derece": "2/0",
+      "tescilTarihi": "2024-07-10",
+      "yevmiye": "6560"
+    },
+    {
+      "alacakli": "TÜRKİYE CUMHURİYETİ ZİRAAT BANKASI A.Ş.",
+      "bedel": "10000000.00",
+      "derece": "3/0",
+      "tescilTarihi": "2026-04-06",
+      "yevmiye": "2998"
+    }
+  ],
+  "takyidatRehinBlok": "Rehinler Hanesinde:\n-TÜRKİYE CUMHURİYETİ ZİRAAT BANKASI A.Ş. lehine 1/1 dereceden 500000.00 TL bedelle 10.12.2019 tarih, 7085 yevmiye ile tesis edilmiş ipotek kaydı görülmüştür.\n-TÜRKİYE CUMHURİYETİ ZİRAAT BANKASI A.Ş. lehine 2/0 dereceden 5000000.00 TL bedelle 10.07.2024 tarih, 6560 yevmiye ile tesis edilmiş ipotek kaydı görülmüştür.\n-TÜRKİYE CUMHURİYETİ ZİRAAT BANKASI A.Ş. lehine 3/0 dereceden 10000000.00 TL bedelle 06.04.2026 tarih, 2998 yevmiye ile tesis edilmiş ipotek kaydı görülmüştür.\n\n20.04.2026 tarihinde alınmış olan Takbis belgesi ve Tapu senedi arasında farklılık bulunmamaktadır.",
+  "takyidatBeyanBlok": ""
+}

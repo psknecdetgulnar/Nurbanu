@@ -1,0 +1,79 @@
+BU BELGE TOPLAM 5 SAYFADAN OLUŞMAKTADIR BİLGİ AMAÇLIDIR. Tarih: 20-4-2026-15:00
+Kaydı Oluşturan: TEST MEMUR ( TEST DEĞERLEME A.Ş. )
+Makbuz No Dekont No Başvuru No
+000000000000 0000000000000000 4920
+TAPU KAYIT BİLGİSİ
+Zemin Tipi: AnaTasinmaz Ada/ Parsel: 125/71
+Taşınmaz Kimlik No: 00000000 AT Yüzölçüm(m2): 5350.00
+İl/ İlçe: ÇANAKKALE/ BAYRAMİÇ Bağımsız Bölüm Nitelik:
+Kurum Adı: Bayramiç Bağımsız Bölüm Brüt
+YüzÖlçümü:
+Mahalle/ Köy Adı: MURADİYE Mah.
+Bağımsız Bölüm Net
+Mevkii: ÇAMLIK
+YüzÖlçümü:
+Cilt/ Sayfa No: 1/99
+Blok/ Kat/ Giriş/ BBNo:
+Kayıt Durum: Aktif
+Arsa Pay/ Payda:
+Ana Taşınmaz Nitelik: TARLA
+MÜLKİYET BİLGİLERİ
+(Hisse) Sistem Malik El Birliği Hisse Pay/ Metrekare Toplam Edinme Terkin Sebebi-
+No No Payda Metrekare Sebebi- Tarih- Tarih- Yevmiye
+Yevmiye
+11111111111 (SN:22222222222) TEST MALİK : - 1/1 5350.00 5350.00 Satış -
+BABA Kızı 06-12-2019
+7012
+1 / 5
+BİLGİ AMAÇLIDIR
+MÜLKİYETE AİT REHİN BİLGİLERİ
+2 / 5
+BİLGİ AMAÇLIDIR
+Ipotek
+Alacaklı Müşterek Borç Faiz Derece Süre Tesis Tarih - Yev
+Mi? Sıra
+(SN:1850) TÜRKİYE CUMHURİYETİ Evet 500000.00 TL %14 1/1 F.B.K. Bayramiç - 10-12-2019 16:02 - 7085
+ZİRAAT BANKASI A.Ş. DEĞİŞKEN
+VKN:9980069675
+İpoteğin Konulduğu Hisse Bilgisi
+Taşınmaz Hisse Pay/ Borçlu Malik Malik Borç Tescil Tarih - Yev Terkin
+Payda Sebebi
+Tarih Yev
+Bayramiç - MURADİYE Mah. - 1/1 (SN:22222222222) TEST MALİK : 500000.00 TL Bayramiç - -
+(Aktif) - 125 Ada - 71 Parsel BABA Kızı 10-12-2019 16:02 -
+7085
+3 / 5
+BİLGİ AMAÇLIDIR
+Ipotek
+Alacaklı Müşterek Borç Faiz Derece Süre Tesis Tarih - Yev
+Mi? Sıra
+(SN:1850) TÜRKİYE CUMHURİYETİ Evet 5000000.00 TL %50 2/0 F.B.K. Bayramiç - 10-07-2024 14:59 - 6560
+ZİRAAT BANKASI A.Ş.
+VKN:9980069675
+İpoteğin Konulduğu Hisse Bilgisi
+Taşınmaz Hisse Pay/ Borçlu Malik Malik Borç Tescil Tarih - Yev Terkin
+Payda Sebebi
+Tarih Yev
+Bayramiç - MURADİYE Mah. - 1/1 (SN:22222222222) TEST MALİK : 5000000.00 Bayramiç - -
+(Aktif) - 125 Ada - 71 Parsel BABA Kızı TL 10-07-2024 14:59 -
+6560
+4 / 5
+BİLGİ AMAÇLIDIR
+Ipotek
+Alacaklı Müşterek Borç Faiz Derece Süre Tesis Tarih - Yev
+Mi? Sıra
+(SN:1850) TÜRKİYE CUMHURİYETİ Evet 10000000.00 TL %50 3/0 F.B.K. Bayramiç - 06-04-2026 16:01 - 2998
+ZİRAAT BANKASI A.Ş.
+VKN:9980069675
+İpoteğin Konulduğu Hisse Bilgisi
+Taşınmaz Hisse Pay/ Borçlu Malik Malik Borç Tescil Tarih - Yev Terkin
+Payda Sebebi
+Tarih Yev
+Bayramiç - MURADİYE Mah. - 1/1 (SN:22222222222) TEST MALİK : 10000000.00 Bayramiç - -
+(Aktif) - 125 Ada - 71 Parsel BABA Kızı TL 06-04-2026 16:01 -
+2998
+Bu belgeyi akıllı telefonunuzdan karekod tarama programları ile aşağıdaki barkodu taratarak;
+veya Web Tapu anasayfasından ( https:// webtapu.tkgm.gov.tr adresinden) NIWbk6vucn9Q kodunu Online İşlemler
+alanına yazarak doğrulayabilirsiniz.
+5 / 5
+BİLGİ AMAÇLIDIR
