@@ -141,9 +141,9 @@ function renderBeyanYonetimPlani(item: TakyidatItem): string {
   const hasDateYev = !!(d && y);
   const formattedPlan = normalizePlanDate(planTarihRaw, hasDateYev ? 'slash' : 'dot');
   if (!hasDateYev) {
-    return `YÖNETİM PLANI: ${formattedPlan} (Tarih ve yevmiye belirtilmemiştir)`;
+    return `Yönetim Planı : ${formattedPlan} (Tarih ve yevmiye belirtilmemiştir)`;
   }
-  return `YÖNETİM PLANI: ${formattedPlan} (${d} tarih, ${y} yevmiye)`;
+  return `Yönetim Planı : ${formattedPlan} (${d} tarih, ${y} yevmiye)`;
 }
 
 function renderBeyanYabanci(item: TakyidatItem): string {
